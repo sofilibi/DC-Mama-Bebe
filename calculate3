@@ -1,0 +1,93 @@
+ data = read.xlsx(fp,sheetName=Sheets[1], h=T,stringsAsFactors=F)
+  #datos = guessVariableType(data)
+  datos=data
+  datos[,"SGLOB"]=datos[,"SCMEN"] + datos[,"SCWM"]
+  datos[,"PGLOB"]=datos[,"PMEN"]+datos[,"PWM"]
+  mat1=as.matrix(datos[,c("SGLOB", "SCMEN", "SCWM")])
+  
+  #############################################################Grafico de Barras del Global###########################
+  
+  #mat1=as.matrix(datos[,c("PGLOB", "PMEN", "PWM")])
+  mat1=datos[,c("Identified.criteria","PHASE","PGLOB","PMEN","PWM")]
+  
+  #dividimos en 3 criterios: Flowering, Harvest y Storage
+  
+  flowering=mat1[mat1$PHASE=="Flowering",]    #Flowering
+  namesFlowering=flowering[,"Identified.criteria"]
+  b=namesFlowering
+  namesFlowering=b
+  
+  flowering=as.matrix(flowering[,c("PGLOB","PMEN","PWM")])
+  
+  harvest=mat1[mat1$PHASE=="Harvest",]       #Harvest
+  namesHarvest=harvest[,"Identified.criteria"]
+  harvest=as.matrix(harvest[,c("PGLOB","PMEN","PWM")])
+  
+  storage=mat1[mat1$PHASE=="Storage",]        #storage
+  namesStorage=storage[,"Identified.criteria"]
+  storage=as.matrix(storage[,c("PGLOB","PMEN","PWM")])
+  
+  #mat1=as.matrix(mat1)
+  
+#   okd=complete.cases(datos["Identified.criteria"])
+#   okm<-complete.cases(mat1)
+#   datos1<-as.matrix(datos["Identified.criteria"][okd,])
+#   matp<-mat1[okm,] #dato
+  
+  
+  ###############dirección del grafico F1_selection criteria##############
+  d=file.path(getwd(),"temp",sep="")
+  dirF1=paste(d,"barplot1.png",sep="")
+  
+  dirF2=paste(d,"barplot2.png",sep="")
+  dirF3=paste(d,"barplot3.png",sep="")
+  
+  
+  ###FLOWERING
+  rownames(flowering)=paste(1:length(namesFlowering),". ",namesFlowering,sep="" )
+  png(file=dirF1,width=900,height=480) 
+  par(mar=c(10, max(4.1,max(length(rownames(namesFlowering)))/1.8),10 ,5)) #el margen blanco vertical e horizontal
+  barplot(t(flowering),col=c("darkseagreen","lightpink","slategray1"),beside = TRUE, ylim = c(0, round(max(flowering))+8),las=2, cex.names=0.9)       
+   text(barplot(t(flowering),col=c("darkseagreen","lightpink","slategray1"),beside = TRUE, ylim = c(0, max((flowering))+5),las=2, cex.names=0.65)+0.4
+  ,t(flowering)+1.5 ,paste(t(flowering),"",sep=""),cex=0.65 ,font=2)
+  
+  #La Leyenda de cada variable
+   legend(30,round(min(flowering))+20,c("PGLOB","PMEN","PWM"),fill=c("darkseagreen","lightpink","slategray1"))
+   grid(NA,5,lw=1)
+   title(main = "Form I: Gathering and ranking of selection criteria-Flowering", font.main = 8)
+  dev.off()   
+  
+  ##HARVEST
+  rownames(harvest)=paste(1:length(namesHarvest),". ",namesHarvest,sep="" )
+  png(file=dirF2,width=900,height=480) 
+  par(mar=c(10, max(4.1,max(length(rownames(namesHarvest)))/1.8),10 ,5)) #el margen blanco vertical e horizontal
+  
+  barplot(t(harvest),col=c("darkseagreen","lightpink","slategray1"),beside = TRUE, ylim = c(0, round(max(harvest))+8),las=2, cex.names=0.9)       
+  text(barplot(t(harvest),col=c("darkseagreen","lightpink","slategray1"),beside = TRUE, ylim = c(0, round(max(harvest))+5),las=2, cex.names=0.65)+0.4
+  ,t(harvest)+1.5 ,paste(t(harvest),"",sep=""),cex=0.65 ,font=2)
+  
+ barplot(t(flowering),col=c("darkseagreen","lightpink","slategray1"),beside = TRUE, ylim = c(0, round(max(flowering))+8),las=2, cex.names=0.9)       
+ text(barplot(t(flowering),col=c("darkseagreen","lightpink","slategray1"),beside = TRUE, ylim = c(0, max((flowering))+5),las=2, cex.names=0.65)+0.4
+  ,t(flowering)+1.5 ,paste(t(flowering),"",sep=""),cex=0.65 ,font=2)
+           
+           
+           
+           
+           #La Leyenda de cada variable
+  legend(15,round(min(harvest))+20,c("PGLOB","PMEN","PWM"),fill=c("darkseagreen","lightpink","slategray1"))
+  grid(NA,5,lw=1)
+  title(main = "Form I: Gathering and ranking of selection criteria-Harvest", font.main = 8)
+  dev.off()   
+  
+  #STORAGE
+  rownames(storage)=paste(1:length(namesStorage),". ",namesStorage,sep="" )
+  png(file=dirF3,width=900,height=480) 
+  par(mar=c(10, max(4.1,max(length(rownames(namesStorage)))/1.8),10 ,5)) #el margen blanco vertical e horizontal
+  barplot(t(storage),col=c("darkseagreen","lightpink","slategray1"),beside = TRUE, ylim = c(0, max(storage)+8),las=2, cex.names=0.9)       
+  text(barplot(t(storage),col=c("darkseagreen","lightpink","slategray1"),beside = TRUE, ylim = c(0, round(max(storage))+5),las=2, cex.names=0.65)+0.4
+       ,t(storage)+1.5 ,paste(t(storage),"",sep=""),cex=0.65 ,font=2)
+  #La Leyenda de cada variable
+  legend(nrow(storage)+15,round(min(storage))+15,c("PGLOB","PMEN","PWM"),fill=c("darkseagreen","lightpink","slategray1"))
+  grid(NA,5,lw=1)
+  title(main = "Form I: Gathering and ranking of selection criteria-Storage", font.main = 8)
+  dev.off()  
