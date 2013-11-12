@@ -1,0 +1,718 @@
+###############################################################################
+#
+# TODO: Add comment
+#
+# Oct 9, 2011
+# 8:31:13 AM
+# Author: Reinhard Simon (rsimon)
+# (c) International Potato Center
+#
+###############################################################################
+x.values=function(vec,values){values[!is.na(vec)]}
+x.mat=function(matri,treatment,rep,sex)
+{
+  val=c(5,3,1,5,3,1,9,6,3)
+  appearance=apply(matri[1:3,],2,x.values,values=val[1:3])  
+  taste=apply(matri[4:6,],2,x.values,values=val[4:6])
+  texture=apply(matri[7:9,],2,x.values,values=val[7:9])
+  MAT=cbind(appearance,taste,texture);rownames(MAT)=1:nrow(MAT)
+  MAT=data.frame(Treatment=treatment,Rep=rep,Sex=sex,MAT)
+  return(MAT) 
+}
+
+x.data=function(datos)
+{
+  tempor1=datos[,c(-1,-2)]
+  tempor1=unique(na.omit(tempor1))
+  treatment=as.character(t(tempor1[1,]))
+  
+  datos=datos[!is.na(datos[,1]) & !is.na(datos[,2]),];rownames(datos)=1:nrow(datos)
+  #cap1=datos[!is.na(datos[,2]) & datos[,2]!="x",]
+  cap1=datos[datos[,2]=="Grade",]
+  ind1=as.numeric(row.names(cap1))
+  
+  #treatment=c("v1","v2","v3","v4","v5") ## ver como ingresar adecuadamente
+  datF=data.frame(Treatment=NA,Rep=NA,Sex=NA,appearance=NA, taste=NA, texture=NA)
+  for(i in ind1)
+  {
+    sex=datos[i-1,2]
+    matri=datos[i+(1:9),c(3:(2+length(treatment)))]
+    datF1=x.mat(matri,treatment,i,sex)
+    datF=rbind(datF,datF1)
+  }
+  datF=datF[-1,]
+  return(datF)
+}
+
+
+#####
+
+
+
+calc.variables <-function(fp){
+  #  library(XLConnect)
+  #  library(agricolae)
+  #  
+  #	sn = "data/yield-trial-sp-demo-data.xls"
+  #	tpl = c("Fieldbook data","*.xls")
+  #	
+  #	workbook = choose.files(sn, "Choose a fieldbook where you already set parameters!", filters=tpl)
+  #wb = loadWorkbook(fp)
+  #design <- get.fb.param(fp,"Installation ","Experimental design")	
+  #val.des <-c("Randomized Complete Block Design (RCBD)")
+  #if(!design %in% val.des){
+  #  if(length(val.des)==1){
+  #    msg= paste("Currently only analysis for '",val.des[1],"'.",sep="")
+  #  } else msg = paste("Currently only analysis for '",paste(val.des,col=", "),"'.",sep="")
+  #  gmessage(msg,
+  #    icon="info")
+  #  return(FALSE)
+  #}
+  Sheets=c("F1_Selec_Crit","F2 Clones_Select_Flowering","F3_Clones_Selec_Harvest","F4_ Harvest_Mother", "F5_harvest_Baby", "F6_organoleptic_rural", "F7_Dormancy_weight_loss_tuber", "F8_Selec_clone_Storage ")
+  
+  ############################################## hoja 1 tambien hacer un grafico de orden de merito
+  
+  #####PLOT.SIZE AND PLANT.LENGTH to MOTHER AND BABY mb
+  instmb=read.xlsx(fp,sheetName="Installation",stringsAsFactors=F)
+  plot.sizemb = as.numeric(instmb[instmb$Factor=="Plot size (m2) ","Mother"]) #dejar un pequeño espacio despues de (m2) 
+  plant.denmb = as.numeric(instmb[instmb$Factor=="Planting density (plants/Ha)","Mother"])
+  ###########
+    
+  data = read.xlsx(fp,sheetName=Sheets[1], h=T,stringsAsFactors=F)
+  #datos = guessVariableType(data)
+  datos=data
+  datos[,"SGLOB"]=datos[,"SCMEN"] + datos[,"SCWM"]
+  datos[,"PGLOB"]=datos[,"PMEN"]+datos[,"PWM"]
+  mat1=as.matrix(datos[,c("SGLOB", "SCMEN", "SCWM")])
+  
+  #############################################################Grafico de Barras del Global###########################
+  
+  #mat1=as.matrix(datos[,c("PGLOB", "PMEN", "PWM")])
+  mat1=datos[,c("Identified.criteria","PHASE","PGLOB","PMEN","PWM")]
+  
+  #dividimos en 3 criterios: Flowering, Harvest y Storage
+  
+  flowering=mat1[mat1$PHASE=="Flowering",]    #Flowering
+  namesFlowering=flowering[,"Identified.criteria"]
+ flowering=as.matrix(flowering[,c("PGLOB","PMEN","PWM")])
+  
+  harvest=mat1[mat1$PHASE=="Harvest",]       #Harvest
+  namesHarvest=harvest[,"Identified.criteria"]
+  harvest=as.matrix(harvest[,c("PGLOB","PMEN","PWM")])
+  
+  storage=mat1[mat1$PHASE=="Storage",]        #storage
+  namesStorage=storage[,"Identified.criteria"]
+  storage=as.matrix(storage[,c("PGLOB","PMEN","PWM")])
+  
+  
+  
+  ###############dirección del grafico F1_selection criteria##############
+  d=file.path(getwd(),"temp/barplot",sep="")
+  dirF1=paste(d,"barplot1.png",sep="")
+  dirF2=paste(d,"barplot2.png",sep="")
+  dirF3=paste(d,"barplot3.png",sep="")
+  
+  
+  ###FLOWERING
+  rownames(flowering)=paste(1:length(namesFlowering),". ",namesFlowering,sep="" )
+  png(file=dirF1,width=900,height=480) 
+  par(mar=c(10, max(4.1,max(length(rownames(namesFlowering)))/1.8),10 ,5)) #el margen blanco vertical e horizontal
+  barplot(t(flowering),col=c("darkseagreen","lightpink","slategray1"),beside = TRUE, ylim = c(0, round(max(flowering))+8),las=2, cex.names=0.9)       
+   text(barplot(t(flowering),col=c("darkseagreen","lightpink","slategray1"),beside = TRUE, ylim = c(0, max((flowering))+5),las=2, cex.names=0.65)+0.4
+  ,t(flowering)+1.5 ,paste(t(flowering),"",sep=""),cex=0.65 ,font=2)
+  
+  #La Leyenda de cada variable
+   legend(30,round(min(flowering))+20,c("PGLOB","PMEN","PWM"),fill=c("darkseagreen","lightpink","slategray1"))
+   grid(NA,5,lw=1)
+   title(main = "Form I: Gathering and ranking of selection criteria-Flowering", font.main = 8)
+  dev.off()   
+  
+  ##HARVEST
+  rownames(harvest)=paste(1:length(namesHarvest),". ",namesHarvest,sep="" )
+  png(file=dirF2,width=900,height=480) 
+  par(mar=c(10, max(4.1,max(length(rownames(namesHarvest)))/1.8),10 ,5)) #el margen blanco vertical e horizontal
+  barplot(t(harvest),col=c("darkseagreen","lightpink","slategray1"),beside = TRUE, ylim = c(0, round(max(harvest)+8)),las=2, cex.names=0.9)       
+  text(barplot(t(harvest),col=c("darkseagreen","lightpink","slategray1"),beside = TRUE, ylim = c(0, max((harvest))+5),las=2, cex.names=0.65)+0.4
+       ,t(harvest)+1.5 ,paste(t(harvest),"",sep=""),cex=0.65,font=2)
+  legend(50,round(min(harvest))+20,c("PGLOB","PMEN","PWM"),fill=c("darkseagreen","lightpink","slategray1"))
+  grid(NA,5,lw=1)
+  title(main = "Form I: Gathering and ranking of selection criteria-Harvest", font.main = 8)
+  dev.off()   
+  
+  #STORAGE
+  rownames(storage)=paste(1:length(namesStorage),". ",namesStorage,sep="" )
+  png(file=dirF3,width=900,height=480) 
+  par(mar=c(10, max(4.1,max(length(rownames(namesStorage)))/1.8),10 ,5)) #el margen blanco vertical e horizontal
+ 
+  barplot(t(storage),col=c("darkseagreen","lightpink","slategray1"),beside = TRUE, ylim = c(0, round(max(storage)+8)),las=2, cex.names=0.9)       
+  text(barplot(t(storage),col=c("darkseagreen","lightpink","slategray1"),beside = TRUE, ylim = c(0, max((storage))+5),las=2, cex.names=0.65)+0.4
+       ,t(storage)+1.5 ,paste(t(storage),"",sep=""),cex=0.65,font=2)
+   legend(30,round(min(storage))+20,c("PGLOB","PMEN","PWM"),fill=c("darkseagreen","lightpink","slategray1"))
+  grid(NA,5,lw=1)
+  title(main = "Form I: Gathering and ranking of selection criteria-Storage", font.main = 8)
+  dev.off()   
+#   
+  
+  
+  wbf1<-loadWorkbook(fp)
+  sheet<-createSheet(wbf1,"F1Selected_Criteria_image")
+  addPicture(dirF1,sheet,startRow=2,startColumn=2)
+  addPicture(dirF2,sheet,startRow=35,startColumn=2)
+  addPicture(dirF3,sheet,startRow=70,startColumn=2)
+  saveWorkbook(wbf1,fp)
+  
+  
+ 
+ 
+  
+  ##############################################################################################################################
+  
+  
+  
+  #rownames(mat1)=paste(1:nrow(datos),". ",datos[,"Identified.criteria"],sep="")
+  #barplot(t(mat1), col=rainbow(3),beside = TRUE,las=2, cex.names=0.5) ## grafico por separado para floracion y ´para cosecha
+  #title(main = "Formulario I: Criterios de Selección (fase: floración)", font.main = 4)
+ 
+  temp2=na.omit(datos[1:3])
+  mat2=datos[rownames(temp2),]
+  nombres=colnames(datos)
+  nivs=unique(mat2[,"PHASE"])
+  #nombres=c("Order","PHASE","Identified.criteria","SCMEN","OR_M","SCWM","OR_WM","SGLOB","PMEN","PWM","PGLOB")
+  
+  temp4=datos[datos[,"PHASE"]==nivs[1],]
+  #temp4$OR_M=order(temp4$SCMEN)
+  temp4=temp4[rev(order(temp4$SCMEN)),]
+  temp4$OR_M=1:nrow(temp4)
+  for(i in 2:length(nivs))
+  {
+    temp5=datos[datos[,"PHASE"]==nivs[i],]
+    #temp5$OR_M=order(temp5$SCMEN)
+    temp5=temp5[rev(order(temp5$SCMEN)),]
+    temp5$OR_M=1:nrow(temp5)
+    temp4=rbind(temp4,temp5)
+  }
+  
+  temp6=temp4[temp4[,"PHASE"]==nivs[1],]
+  temp6=temp6[rev(order(temp6$SCWM)),]
+  temp6$OR_WM=1:nrow(temp6)
+  for(i in 2:length(nivs))
+  {
+    temp7=temp4[temp4[,"PHASE"]==nivs[i],]
+    temp7=temp7[rev(order(temp7$SCWM)),]
+    temp7$OR_WM=1:nrow(temp7)
+    temp6=rbind(temp6,temp7)
+  }
+  
+  temp6$PMEN=round(100*temp6$SCMEN/sum(temp6$SCMEN,na.rm = TRUE),2)
+  temp6$PWM=round(100*temp6$SCWM/sum(temp6$SCWM,na.rm = TRUE),2)
+  temp6$PGLOB=round(100*temp6$SGLOB/sum(temp6$SGLOB,na.rm = TRUE),2)
+  
+ 
+  add.vals.DF(fp,Sheet1=Sheets[1],temp6,IniC=1,IniR=2,xVal=1,COLOR1="blue",col.n=FALSE, row.n=FALSE)
+  
+  
+  ############################################## hoja 2 solo para analisis de varianza no parametrico
+    
+  data = read.xlsx(fp,sheetName=Sheets[2], h=T)
+  #datos = guessVariableType(data)
+  datos=data
+  
+  datos$MSGLO=datos[,"MSM"] + datos[,"MSWM"]
+  datos$BSGLO=datos[,"BSM"] + datos[,"BSWM"]
+  
+  mat2=as.matrix(datos[,c("MSM", "MSWM", "MSGLO")])
+  rownames(mat2)=paste(datos[,"REP"],"-",datos[,"INSTN"],sep="")
+  
+  #barplot(t(mat2), col=rainbow(3),beside = TRUE,las=2, cex.names=0.5) ## se puede generar 2 paneles o mas para la repeticion
+  #title(main = "Formulario I: Criterios de Selección (fase: floración)", font.main = 4)
+  
+  
+  mat3=as.matrix(datos[,c("BSM", "BSWM", "BSGLO")])
+  rownames(mat3)=paste(datos[,"REP"],"-",datos[,"INSTN"],sep="")
+  
+  #barplot(t(mat3), col=rainbow(3),beside = TRUE,las=2, cex.names=0.5) ## se puede generar 2 paneles o mas para la repeticion
+  #title(main = "Formulario I: Criterios de Selección (fase: floración)", font.main = 4)
+  #write.csv(datos,"D:/archivos nuevos DataCollector/Mama y Bebe/hoja F2.csv")
+
+  add.vals.DF(fp,Sheet1=Sheets[2],datos,IniC=1,IniR=2,xVal=1,COLOR1="blue",col.n=FALSE, row.n=FALSE)
+  
+  
+  ############################################## hoja 3 hacer analisis de varianza no parametrico
+  
+  
+  data = read.xlsx(fp,sheetName=Sheets[3], h=T)
+  #datos = guessVariableType(data)
+  datos=data
+  
+  datos$MSGLO=datos[,"MSM"] + datos[,"MSWM"]
+  datos$BSGLO=datos[,"BSM"] + datos[,"BSWM"]
+  
+  mat2=as.matrix(datos[,c("MSM", "MSWM", "MSGLO")])
+  rownames(mat2)=paste(datos[,"REP"],"-",datos[,"INSTN"],sep="")
+  
+  #barplot(t(mat2), col=rainbow(3),beside = TRUE,las=2, cex.names=0.5) ## se puede generar 2 paneles o mas para la repeticion
+  #title(main = "Formulario I: Criterios de Selección (fase: floración)", font.main = 4)
+  
+  mat3=as.matrix(datos[,c("BSM", "BSWM", "BSGLO")])
+  rownames(mat3)=paste(datos[,"REP"],"-",datos[,"INSTN"],sep="")
+  
+  #barplot(t(mat3), col=rainbow(3),beside = TRUE,las=2, cex.names=0.5) ## se puede generar 2 paneles o mas para la repeticion
+  #title(main = "Formulario I: Criterios de Selección (fase: floración)", font.main = 4)
+  
+
+  add.vals.DF(fp,Sheet1=Sheets[3],datos,IniC=1,IniR=2,xVal=1,COLOR1="blue",col.n=FALSE, row.n=FALSE)
+  
+  ############################################## hoja 4
+  
+  data = read.xlsx(fp,sheetName=Sheets[4], h=T)
+  #datos = guessVariableType(data)
+  datos=data
+  
+  datos$PPH=100*datos[,"NPH"]/datos[,"NTP"]
+  datos$NMTPL=datos[,"NMTP"]/datos[,"NPH"]
+  datos$TNTP=datos[,"NMTP"]+datos[,"NNoMTP"]
+  datos$TTWPL=datos[,"TTWP"]/datos[,"NPH"]
+  #datos$TTWP=datos[,"NMTP"]+datos[,"NNoMTP"]
+  #datos$TTWPL=datos[,"TNTP"]/datos[,"NPH"] ## revisa pues no cuadra la formula
+  datos$MTWPL=datos[,"MTWP"]+datos[,"NPH"]
+  #datos$MTYA=datos[,"MTWP"]+datos[,"NNoMTP"] ## revisa no hay la variable
+  #datos$MTYNA=datos[,"MTWP"]+datos[,"NNoMTP"] ## revisa no hay la variable
+  datos$TNTPL=datos[,"TNTP"]/datos[,"NPH"] ##TNTPL 
+  
+  datos$TTWP=datos[,"MTWP"]+datos[,"NoMTWP"]##TTWP 
+  datos$ATW=(datos[,"TTWP"]/datos[,"TNTP"])*1000
+  
+  datos$TTYNA = (datos[,"TTWP"]/plot.sizemb)*10  #TTWP   GTDM-39
+  datos$TTYA  = (datos[,"TTWPL"]*plant.denmb)/1000 #TTYA  GTDM-45
+  
+  datos$MTYNA= (datos[,"MTWP"]/plot.sizemb)*10    # GTDM-39                
+  datos$MTYA= (datos[,"MTWPL"]*plant.denmb)/1000  # GTDM-39        
+  
+  mat4=as.matrix(datos[,c("PPH")])
+  #rownames(mat4)=paste(datos[,"REP"],"-",datos[,"Institutional.number"],sep="")
+  #barplot(t(mat4), col=rainbow(1),beside = TRUE,las=2, cex.names=0.5) ## se puede generar 2 paneles o mas para la repeticion
+  #title(main = "Formulario I: Criterios de Selección (fase: floración)", font.main = 4)
+  
+  add.vals.DF(fp,Sheet1=Sheets[4],datos,IniC=1,IniR=2,xVal=1,COLOR1="blue",col.n=FALSE, row.n=FALSE)
+  
+  
+  ############################################## hoja 5 considerar los bebes por separado
+  data = read.xlsx(fp,sheetName=Sheets[5], h=T)
+  #datos = guessVariableType(data)
+  datos=data
+  temp7=na.omit(datos[,c(1,2,3,7)]) ## EDITAR
+  datos=datos[rownames(temp7),]
+  
+  datos$PPH=100*datos[,"NPH"]/datos[,"NTP"]
+  datos$NMTPL=datos[,"NMTP"]/datos[,"NPH"]
+  datos$TNTP=datos[,"NMTP"]+datos[,"NNoMTP"]
+  datos$TTWPL=datos[,"TTWP"]/datos[,"NPH"]
+  #datos$TTWP=datos[,"NMTP"]+datos[,"NNoMTP"]
+  #datos$TTWPL=datos[,"TNTP"]/datos[,"NPH"] ## revisa pues no cuadra la formula
+  datos$MTWPL=datos[,"MTWP"]+datos[,"NPH"]
+  #datos$MTYA=datos[,"MTWP"]+datos[,"NNoMTP"] ## revisa no hay la variable
+  #datos$MTYNA=datos[,"MTWP"]+datos[,"NNoMTP"] ## revisa no hay la variable
+  datos$TNTPL=datos[,"TNTP"]/datos[,"NPH"] ##TNTPL omar
+  
+  datos$TTWP=datos[,"MTWP"]+datos[,"NoMTWP"]##TTWP omar
+  datos$ATW=(datos[,"TTWP"]/datos[,"TNTP"])*1000
+  
+  datos$TTYNA = (datos[,"TTWP"]/plot.sizemb)*10  #TTWP  omar GTDM-39
+  datos$TTYA  = (datos[,"TTWPL"]*plant.denmb)/1000 #TTYA omar GTDM-45
+  
+  datos$MTYNA  = (datos[,"MTWP"]/plot.sizemb)*10    #omar GTDM-39          
+  datos$MTYA        = (datos[,"MTWPL"]*plant.denmb)/1000  #omar GTDM-39        
+  
+   
+  mat5=as.matrix(datos[,c("PPH")])
+  #rownames(mat5)=paste(datos[,"REP"],"-",datos[,"Institutional.number"],sep="")
+  #barplot(t(mat5), col=rainbow(3),beside = TRUE,las=2, cex.names=0.5) ## se puede generar 2 paneles o mas para la repeticion
+  #title(main = "Formulario I: Criterios de Selección (fase: floración)", font.main = 4)
+  
+  add.vals.DF(fp,Sheet1=Sheets[5],datos,IniC=1,IniR=2,xVal=1,COLOR1="blue",col.n=FALSE, row.n=FALSE)
+  
+  
+  ############################################## hoja 6
+  ## Componentes principales
+   
+  data = read.xlsx(fp,sheetName=Sheets[6], h=T)
+  #datos = guessVariableType(data)
+  datos=data
+  dat=x.data(datos)
+  #datos=datos[!is.na(datos[,1]),]
+  #cap1=datos[!is.na(datos[,2]) & datos[,2]!="x",]
+  #ind1=row.names(cap1)
+  #atos[4+1:3,c(2:6)]
+  
+  #saveWorkbook(wb, fp) ## se pondria al final
+  
+  #return(TRUE)
+  wb = loadWorkbook(fp) 
+  sheet  <- createSheet(wb, sheetName="Data_organoleptic_rural")
+  addDataFrame(dat, sheet,row.names=FALSE)
+  saveWorkbook(wb,fp)  
+  
+}
+
+get.rel.days <- function(mgt){
+	start.date = mgt[mgt$Intervention.type=="Planting","Date"]
+	std = as.integer(strsplit(start.date,"-")[[1]])
+	std = as.integer(mdy.date(std[2],std[3],std[1]))
+	
+	lb = paste("Percentage of foliage affected by Late Blight",1:12)
+	mgt$Date = as.character(mgt$Date)
+	mgt$Intervention.type = as.character(mgt$Intervention.type)
+	ds = mgt[mgt$Intervention.type %in% lb,"Date"]
+	di = integer(length(ds))
+	for(i in 1:length(ds)){
+		dx = as.integer(strsplit(ds[i],"-")[[1]])
+		if(length(dx)==3){
+			di[i] = mdy.date(dx[2],dx[3],dx[1])	
+		} else {
+			break
+		}
+	}
+	#std = di[1]
+	di=di-std
+	#di[1] = di[1]+1
+	#print(di)
+	di #GTDM-43
+}
+
+get.lb.control <-function(mtl){
+	mtl$Scale.AUDPC.control = as.integer(mtl$Scale.AUDPC.control)
+	mtl$Institutional.number= as.character(mtl$Institutional.number)
+	mtl[!is.na(mtl$Scale.AUDPC.control),c("Institutional.number","Scale.AUDPC.control")]	
+}
+
+saudpc <-function(instn, audpc, reps, lb.ctrl){
+	audpc=as.numeric(as.character(audpc))
+	sc.ctrl = as.integer(lb.ctrl["Scale.AUDPC.control"])
+	saudpc = numeric(length(audpc))
+	reps = as.integer(as.character(reps))
+	rs=sort(unique(reps))
+	
+	ref.audpc=NULL
+	for(i in 1:length(rs)){
+		f = which(reps==rs[i])
+		#print(f)
+		a = audpc[f]
+		#print(a)
+		n = instn[f]
+		#print(n)
+		p = which(n==lb.ctrl["Institutional.number"][[1]])
+		if(length(p)==0){
+			au.ctrl = ref.audpc
+			#print(i)
+		} else {
+			#print(i)
+			au.ctrl = a[p]	
+			ref.audpc = au.ctrl
+		}
+		
+		#print(au.ctrl)
+		a=a/au.ctrl * sc.ctrl
+		#print(sc.ctrl)
+		#print(a)
+		saudpc[f]=a
+	}
+	
+	round(saudpc,1)
+}
+
+xaudpc <- function(eval, dates, type){
+	pts = length(dates)
+	audpc(eval[,1:pts], dates, type)
+}
+
+
+######################
+calculate <-function(fieldbook, inst=NULL, mgt=NULL, mtl=NULL,
+		type="yield", digits=2){
+digs.old = options("digits")[[1]]
+#options(digits=digits)
+plot.size = as.numeric(inst[inst$Factor=="Plot size (m2) ","Value"])
+plant.den = as.numeric(inst[inst$Factor=="Planting density (plants/Ha)","Value"])
+fieldbook$INSTN = as.character(fieldbook$INSTN)
+fb = fieldbook
+
+# correct for empty columns that are of type character or logic
+# first find where INSTN
+fbn = names(fb)
+p = which(fbn %in% "INSTN") + 1
+for(i in p:length(fbn)){
+	fb[,i] = as.numeric(fb[,i])
+}
+#print(type)
+#print(has.data(fb$PPE))
+
+if(!has.data(fb$PPE)  & length(fb$NPE)>0 & length(fb$NTP)>0 ) fb=within(fb,{	
+		PPE 	= (NPE*100)/NTP	})			
+
+if(!has.data(fb$PPH)  & length(fb$NTP)>0 & length(fb$PPH)>0 ) fb=within(fb,{	
+		PPH 	= (NPH*100)/NTP	})			
+if(!has.data(fb$TNTP) & length(fb$NMTCI)>0 & length(fb$NMTCII)>0 & length(fb$NNoMTP)>0 ) fb=within(fb,{	
+		TNTP	= NMTCI + NMTCII + NNoMTP	})			
+if(!has.data(fb$TNTP) & length(fb$NMTP)>0 & length(fb$NNoMTP)>0 ) fb=within(fb,{	
+		TNTP	= NMTP+ NNoMTP})			
+
+
+if(!has.data(fb$TNTPL) & length(fb$TNTP)>0 & length(fb$NPH)>0  ) fb=within(fb,{	
+		TNTPL	= TNTP/NPH	})			
+if(!has.data(fb$NMTP) & length(fb$NMTCI)>0 & length(fb$NMTCII)>0  ) fb=within(fb,{	
+		NMTP	= NMTCI + NMTCII	})			
+if(!has.data(fb$NMTPL) & length(fb$NMTP)>0 & length(fb$NPH)>0  ) fb=within(fb,{	
+		NMTPL	= NMTP/NPH	})			
+if(!has.data(fb$TTWP) & length(fb$MTWCI)>0 & length(fb$MTWCII)>0 & length(fb$NoMTWP)>0 ) fb=within(fb,{	
+		TTWP	= MTWCI + MTWCII + NoMTWP	})	
+if(!has.data(fb$TTWP) & length(fb$MTWP)>0 & length(fb$NoMTWP)>0 ) fb=within(fb,{	
+		TTWP	= MTWP + NoMTWP	})	
+
+if(!has.data(fb$TTWPL) & length(fb$TTWP)>0 & length(fb$NPH)>0 ) fb=within(fb,{	
+		TTWPL	= TTWP/NPH	})			
+if(!has.data(fb$TTYNA) & length(fb$TTWP)>0  ) fb=within(fb,{	
+		TTYNA	= TTWP/plot.size*10	})	#GTDM-39		
+if(!has.data(fb$TTYA) & length(fb$TTWPL)>0  ) fb=within(fb,{	
+		TTYA	= TTWPL*plant.den/1000}) # GTDM-45			
+if(!has.data(fb$MTWP) & length(fb$MTWCI)>0 & length(fb$MTWCII)>0 ) fb=within(fb,{	
+		MTWP	= MTWCI + MTWCII})			
+if(!has.data(fb$MTWPL) & length(fb$MTWP)>0 & length(fb$NPH)>0 ) fb=within(fb,{	
+		MTWPL	= MTWP/NPH})			
+if(!has.data(fb$MTYNA) & length(fb$MTWP)>0 ) fb=within(fb,{	
+		MTYNA	= MTWP/plot.size*10})	#GTDM-39		
+if(!has.data(fb$MTYA) & length(fb$MTWPL)>0 ) fb=within(fb,{	
+		MTYA	= MTWPL*plant.den/1000})#GTDM-39			
+if(!has.data(fb$ATW) & length(fb$TTWP)>0 & length(fb$TNTP)>0) fb=within(fb,{	
+		ATW		= TTWP/TNTP*1000})			
+if(!has.data(fb$ATMW) & length(fb$MTWP)>0 & length(fb$NMTP)>0) fb=within(fb,{	
+		ATMW	= MTWP/NMTP*1000})			
+if(!has.data(fb$DM1) & length(fb$DWTS1)>0 & length(fb$FWTS1)>0) fb=within(fb,{	
+		DM1		= DWTS1/FWTS1 * 100})			
+if(!has.data(fb$DM2) & length(fb$DWTS2)>0 & length(fb$FWTS2)>0) fb=within(fb,{	
+		DM2		= DWTS2/FWTS2 * 100})			
+if(!has.data(fb$AVDM) & length(fb$DM1)>0 & length(fb$DM2)>0) fb=within(fb,{	
+		AVDM	= (DM1 + DM2)/2})			
+if(!has.data(fb$SG) & length(fb$TWA)>0 & length(fb$TWA)>0 & length(fb$TWW)>0) fb=within(fb,{	
+		SG		= TWA/(TWA-TWW)})			
+if(!has.data(fb$OCS1) & length(fb$IWS1)>0 & length(fb$FWS1)>0 ) fb=within(fb,{	
+		OCS1	= 100 - ((FWS1/IWS1)*100)})		## Aqui la monse de Ximena detecto esto
+if(!has.data(fb$OCS2) & length(fb$IWS2)>0 & length(fb$FWS2)>0 ) fb=within(fb,{	
+		OCS2	= 100 - ((FWS2/IWS2)*100)})			
+if(!has.data(fb$AOCP) & length(fb$OCS1)>0 & length(fb$OCS2)>0 ) fb=within(fb,{	
+		AOCP	= (OCS1 + OCS2)/2})
+
+###############################################################################
+# Start related variables for sweetpotato
+
+if(!has.data(fb$TRW) & length(fb$CRW)>0 & length(fb$NCRW)>0 ) fb=within(fb,{	
+				TRW	= apply(cbind(CRW,NCRW), 1, sum, na.rm=T)})
+
+if(!has.data(fb$CYTHA) & length(fb$CRW)>0) fb=within(fb,{	
+				CYTHA	= CRW*10/plot.size})
+
+if(!has.data(fb$RYTHA) & length(fb$CRW)>0 & length(fb$NCRW)>0) fb=within(fb,{	
+				RYTHA	= apply(cbind(CRW,NCRW), 1, sum, na.rm=T)*10/plot.size})
+
+if(!has.data(fb$ACRW) & length(fb$CRW)>0 & length(fb$NOCR)>0) fb=within(fb,{	
+				ACRW	= CRW/NOCR})
+
+if(!has.data(fb$NRPP) & length(fb$NOCR)>0 & length(fb$NONC)>0 & length(fb$NOPH)>0) fb=within(fb,{	
+				NRPP	= apply(cbind(NOCR,NONC), 1, sum, na.rm=T)/NOPH})
+
+if(!has.data(fb$YPP) & length(fb$CRW)>0 & length(fb$NCRW)>0 & length(fb$NOPH)>0) fb=within(fb,{	
+				YPP	= apply(cbind(CRW, NCRW), 1, sum, na.rm=T)/NOPH})
+
+if(!has.data(fb$CI) & length(fb$NOCR)>0 & length(fb$NONC)>0) fb=within(fb,{	
+				CI	= NOCR/apply(cbind(NOCR,NONC), 1, sum, na.rm=T)*100})
+
+if(!has.data(fb$HI) & length(fb$CRW)>0 & length(fb$NCRW)>0 & length(fb$VW)>0) fb=within(fb,{	
+				HI	= apply(cbind(CRW, NCRW), 1, sum, na.rm=T)/apply(cbind(VW, CRW, NCRW), 1, sum, na.rm=T)*100})
+
+if(!has.data(fb$SHI) & length(fb$NOPH)>0 & length(fb$NOPS)>0) fb=within(fb,{	
+				SHI	= NOPH/NOPS*100})
+
+if(!has.data(fb$BIOM) & length(fb$CRW)>0 & length(fb$NCRW)>0 & length(fb$VW)>0) fb=within(fb,{	
+				BIOM	= apply(cbind(VW, CRW, NCRW), 1, sum, na.rm=T)*10/plot.size})
+
+if(!has.data(fb$FYTHA) & length(fb$VW)>0) fb=within(fb,{	
+				FYTHA	= VW*10/plot.size})
+
+if(!has.data(fb$DM) & length(fb$DMD)>0 & length(fb$DMF)>0) fb=within(fb,{	
+				DM	= DMD/DMF*100})
+
+if(!has.data(fb$DMFY) & length(fb$VW)>0 & length(fb$DMVD)>0 & length(fb$DMVF)>0) fb=within(fb,{	
+				DMFY	= VW*10/plot.size*DMVD/DMVF})
+
+if(!has.data(fb$DMRY) & length(fb$CRW)>0 & length(fb$NCRW)>0 & length(fb$DMD)>0 & length(fb$DMF)>0) fb=within(fb,{	
+				DMRY	= apply(cbind(CRW, NCRW), 1, sum, na.rm=T)*10/plot.size*DMD/DMF})
+
+if(!has.data(fb$RFR) & length(fb$CRW)>0 & length(fb$NCRW)>0 & length(fb$DMD)>0 & length(fb$DMF)>0 & length(fb$DMVD)>0 & length(fb$DMVF)>0) fb=within(fb,{	
+				RFR	= apply(cbind(CRW, NCRW), 1, sum, na.rm=T)*(DMD/DMF)/(VW*DMVD/DMVF)})
+
+# End related variables for sweetpotato
+###############################################################################
+
+fieldbook = fb
+
+lbf = c("LB1","LB2","LB3","LB4","LB5","LB6","LB7","LB8","LB9","LB10","LB11","LB12")
+yy = names(fieldbook)
+if(type=="late blight"){
+	rel.days=get.rel.days(mgt)
+	lb.control=get.lb.control(mtl)
+	#print(str(fieldbook))	
+	fieldbook=within(fieldbook,{
+		AUDPC	= xaudpc(
+					eval = fieldbook[,yy[yy %in% lbf]] ,
+					#eval = cbind(LB1,LB2,LB3,LB4,LB5,LB6,LB7) ,
+					dates= rel.days,
+					type = "absolute")
+		rAUDPC	= xaudpc(
+					eval = fieldbook[,yy[yy %in% lbf]] ,
+					#eval = cbind(LB1,LB2,LB3,LB4,LB5,LB6,LB7) ,
+					dates= rel.days,
+					type = "relative")
+		SAUDPC	= saudpc(INSTN,AUDPC,REP, lb.control)
+					
+	})
+}
+
+
+fieldbook[,fbn] # make sure not any variables were attached
+}
+
+save.calcs.to.excel <- function(df, fp, nm,sheetN){
+	fieldbook	= read.excel(fp, sheetName=sheetN)
+	hd = rep(TRUE, ncol(fieldbook))
+	for(i in 1:ncol(fieldbook)) hd[i]=has.data(fieldbook[,i])
+	hd = which(hd)
+	# get the col indices for the calculated vars
+	cnms = nm
+	dict = get.data.dict(cnms)
+	hasf = has.formula(dict)
+	# correct for the missing initial columns (3 or 4)
+	p = length(cnms)-length(hasf)
+	hasf = c(rep(FALSE,p),hasf)
+	hf = which(hasf)
+	n  = length(hf)
+	m  = nrow(df)
+	# get the worksheet
+	wb = loadWorkbook(fp)
+	sheets <- getSheets(wb)
+	sheet <- sheets[[sheetN]]
+	# for each calc column 
+	rows=getRows(sheet)
+	csl = get.cell.styles(wb)
+	for(i in 1:n){
+		col = hf[i]
+		for(j in 1:m){
+			r = j+1
+			#if(!(col %in% hd)) {
+				cell <- createCell(rows[r], colIndex=col)[[1,1]]
+				value<- df[j,col]
+				setCellValue(cell, value)
+				cs=csl$number_col3
+				setCellStyle(cell, cs)
+			#}
+		}
+	}
+	# finally save the workbook
+	autoSizeColumn(sheet, 1:ncol(df))
+	saveWorkbook(wb, fp)
+}
+
+
+slope.calcul<-function(fp){
+  dat1 <- read.xlsx(fp, sheetName="Fieldbook")
+  dat2 <- read.xlsx(fp, sheetName="Installation")
+  dat3 <- read.xlsx(fp, sheetName="Crop_management")
+
+  
+  LBs0=paste("Percentage of foliage affected by Late Blight ",1:12,sep="")
+  validos0=match(LBs0,dat3[,2])
+  validos0=validos0[!is.na(validos0)]
+  
+  
+  
+  fechas=dat3[validos0,3]
+  fechas=as.Date(fechas, origin = cap[1])
+  dif.fechas=c(1,as.numeric(fechas[2:length(fechas)]-fechas[1:(length(fechas)-1)]))
+  #dif.fechas
+  resF=cumsum(dif.fechas)
+  #resF
+  x=cumsum(dif.fechas)
+  
+  
+  #str(dat1)
+  # Number of evaluationes
+  #dat1[,3:10]
+  #val1=4
+  dat1=dat1[, apply(dat1, 2, function(x) !all(is.na(x)))] ## borra tdas las columnas que tienen NAs en todos sus valores
+  dat1[,"REP"]=as.factor(dat1[,"REP"])
+  dat1[,"PLOT"]=as.factor(dat1[,"PLOT"])
+  LBs=paste("LB",1:12,sep="")
+  validos=match(LBs,c(colnames(dat1)))
+  validos=validos[!is.na(validos)]
+  
+  if(length(validos)>3)
+  {
+    cap=sapply(dat1, class)
+    #ddd=dat1[,cap=="numeric"]
+    ddd=dat1[,validos]
+    
+    #ddd=dat1[,val1:ncol(dat1)]
+    slope <- NULL
+    delta <- NULL
+    n=nrow(ddd)
+    for (i in 1:n){
+      # Read data for one clon
+      y <- as.numeric(ddd[i,])
+      # Put x and y together
+      aaa <- data.frame(x,y)
+      # remove values for y with 0 and NA
+      aaa <- subset(aaa, y!=0 & is.na(y)==0)
+      # compute delta if there is more than 0 value
+      if (dim(aaa)[1]>0){
+        delta[i] <- aaa$x[1]-1
+      } else
+        delta[i] <- NA
+      # remove values for y with 100
+      aaa <- subset(aaa, y!= 100)
+      # Transform y
+      aaa$y <- log10(aaa$y/(100-aaa$y))
+      # fit model if there is more than 1 value
+      if (dim(aaa)[1]>1){
+        model <- lm(y~x, data=aaa)
+        # store slope
+        slope[i] <- coef(model)[2]
+      } else
+        slope[i] <- NA
+    }
+    #ddd <- cbind(ddd, slope, delta)
+    #str(ddd)
+    ddd <- data.frame(dat1[,cap=="factor"],dat1[,validos],SLOPE=slope, DELTA=delta)
+    
+    wb2 <- loadWorkbook(fp)
+    sheet  <- createSheet(wb2, sheetName="Slope and Delta")
+    addDataFrame(ddd, sheet,row.names=F)
+    saveWorkbook(wb2,fp)
+    
+  }  
+}
+
+
+calc.vars <- function(fp,sheet){
+	#fp = getFieldBookPath(fn)
+	fieldbook	= read.xlsx(fp,sheetName=sheet, stringsAsFactors=F) # reverted to xlsx so all formulas are read as values
+	
+	#GTDM-39, GTDM-44
+	inst 	  	= read.xlsx(fp,sheetName="Installation", stringsAsFactors=F) # reverted to xlsx so all formulas are read as values
+	mgt			= read.xlsx(fp,sheetName="Crop_management", stringsAsFactors=F)
+	mtl			= read.xlsx2(fp,sheetName="Material List", stringsAsFactors=F)
+	mml			= read.xlsx(fp,sheetName="Minimal", stringsAsFactors=F) # reverted to xlsx so all formulas are read as values
+	typ			= as.character(mml[mml$Factor=="Type of Trial","Value"], stringsAsFactors=F)
+  fb = calculate(fieldbook,inst=inst,mgt=mgt, mtl=mtl, type=typ)
+	save.calcs.to.excel(fb, fp, names(fieldbook),sheetN=sheet)
+}
+
+	
+
