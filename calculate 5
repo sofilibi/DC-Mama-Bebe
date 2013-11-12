@@ -156,34 +156,14 @@ calc.variables <-function(fp){
   
   wbf1<-loadWorkbook(fp)
   sheet<-createSheet(wbf1,"F1Selected_Criteria_image")
-  ##
-  nombsheet<-getSheets(wbf1)
-  sink("sheetsCalc.txt")
-  print(nombsheet)
-  sink()
-  ##
   addPicture(dirF1,sheet,startRow=2,startColumn=2)
   addPicture(dirF2,sheet,startRow=35,startColumn=2)
   addPicture(dirF3,sheet,startRow=70,startColumn=2)
-  
-  sink("dirCalc.txt")
-  print(dirF1)
-  print(dirF2)
-  print(dirF3)
-  sink()
-  
-  
-  
   saveWorkbook(wbf1,fp)
   
+  rm(sheet)
   
- 
- 
-  
-  ##############################################################################################################################
-  
-  
-  
+    
   #rownames(mat1)=paste(1:nrow(datos),". ",datos[,"Identified.criteria"],sep="")
   #barplot(t(mat1), col=rainbow(3),beside = TRUE,las=2, cex.names=0.5) ## grafico por separado para floracion y ´para cosecha
   #title(main = "Formulario I: Criterios de Selección (fase: floración)", font.main = 4)
@@ -264,18 +244,13 @@ calc.variables <-function(fp){
   dev.off()       
   ########
   
-  wb<-loadWorkbook(fp)
-  sheet<-createSheet(wb,"F2_IMAGEN2")
-  addPicture(dirF4,sheet,startRow=2,startColumn=2)
-  saveWorkbook(wb,fp)
+#   wb<-loadWorkbook(fp)
+#   sheet<-createSheet(wb,"F2_IMAGEN2")
+#   addPicture(dirF4,sheet,startRow=2,startColumn=2)
+#   saveWorkbook(wb,fp)
   
   
   
-  
-  #barplot(t(mat3), col=rainbow(3),beside = TRUE,las=2, cex.names=0.5) ## se puede generar 2 paneles o mas para la repeticion
-  #title(main = "Formulario I: Criterios de Selección (fase: floración)", font.main = 4)
-  #write.csv(datos,"D:/archivos nuevos DataCollector/Mama y Bebe/hoja F2.csv")
-
   add.vals.DF(fp,Sheet1=Sheets[2],datos,IniC=1,IniR=2,xVal=1,COLOR1="blue",col.n=FALSE, row.n=FALSE)
   
   
@@ -323,13 +298,13 @@ calc.variables <-function(fp){
   
     
   
-  wb<-loadWorkbook(fp)
-  sheet<-createSheet(wb,"F3_Clones_SelHarvest_image")
-  addPicture(dirF7,sheet,startRow=2,startColumn=2)
-  saveWorkbook(wb,fp)
+#   wb<-loadWorkbook(fp)
+#   sheet<-createSheet(wb,"F3_Clones_SelHarvest_image")
+#   addPicture(dirF7,sheet,startRow=2,startColumn=2)
+#   saveWorkbook(wb,fp)
   
   
-  ############################################## hoja 4
+  ############################################## hoja 4################################################################
   
   data = read.xlsx(fp,sheetName=Sheets[4], h=T)
   #datos = guessVariableType(data)
@@ -339,11 +314,7 @@ calc.variables <-function(fp){
   datos$NMTPL=datos[,"NMTP"]/datos[,"NPH"]
   datos$TNTP=datos[,"NMTP"]+datos[,"NNoMTP"]
   datos$TTWPL=datos[,"TTWP"]/datos[,"NPH"]
-  #datos$TTWP=datos[,"NMTP"]+datos[,"NNoMTP"]
-  #datos$TTWPL=datos[,"TNTP"]/datos[,"NPH"] ## revisa pues no cuadra la formula
   datos$MTWPL=datos[,"MTWP"]+datos[,"NPH"]
-  #datos$MTYA=datos[,"MTWP"]+datos[,"NNoMTP"] ## revisa no hay la variable
-  #datos$MTYNA=datos[,"MTWP"]+datos[,"NNoMTP"] ## revisa no hay la variable
   datos$TNTPL=datos[,"TNTP"]/datos[,"NPH"] ##TNTPL 
   
   datos$TTWP=datos[,"MTWP"]+datos[,"NoMTWP"]##TTWP 
@@ -356,10 +327,6 @@ calc.variables <-function(fp){
   datos$MTYA= (datos[,"MTWPL"]*plant.denmb)/1000  # GTDM-39        
   
   mat4=as.matrix(datos[,c("PPH")])
-  #rownames(mat4)=paste(datos[,"REP"],"-",datos[,"Institutional.number"],sep="")
-  #barplot(t(mat4), col=rainbow(1),beside = TRUE,las=2, cex.names=0.5) ## se puede generar 2 paneles o mas para la repeticion
-  #title(main = "Formulario I: Criterios de Selección (fase: floración)", font.main = 4)
-  
   add.vals.DF(fp,Sheet1=Sheets[4],datos,IniC=1,IniR=2,xVal=1,COLOR1="blue",col.n=FALSE, row.n=FALSE)
   
   
@@ -374,28 +341,16 @@ calc.variables <-function(fp){
   datos$NMTPL=datos[,"NMTP"]/datos[,"NPH"]
   datos$TNTP=datos[,"NMTP"]+datos[,"NNoMTP"]
   datos$TTWPL=datos[,"TTWP"]/datos[,"NPH"]
-  #datos$TTWP=datos[,"NMTP"]+datos[,"NNoMTP"]
-  #datos$TTWPL=datos[,"TNTP"]/datos[,"NPH"] ## revisa pues no cuadra la formula
   datos$MTWPL=datos[,"MTWP"]+datos[,"NPH"]
-  #datos$MTYA=datos[,"MTWP"]+datos[,"NNoMTP"] ## revisa no hay la variable
-  #datos$MTYNA=datos[,"MTWP"]+datos[,"NNoMTP"] ## revisa no hay la variable
   datos$TNTPL=datos[,"TNTP"]/datos[,"NPH"] ##TNTPL omar
-  
   datos$TTWP=datos[,"MTWP"]+datos[,"NoMTWP"]##TTWP omar
   datos$ATW=(datos[,"TTWP"]/datos[,"TNTP"])*1000
-  
   datos$TTYNA = (datos[,"TTWP"]/plot.sizemb)*10  #TTWP  omar GTDM-39
   datos$TTYA  = (datos[,"TTWPL"]*plant.denmb)/1000 #TTYA omar GTDM-45
-  
-  datos$MTYNA  = (datos[,"MTWP"]/plot.sizemb)*10    #omar GTDM-39          
-  datos$MTYA        = (datos[,"MTWPL"]*plant.denmb)/1000  #omar GTDM-39        
-  
-   
+  datos$MTYNA = (datos[,"MTWP"]/plot.sizemb)*10    #omar GTDM-39          
+  datos$MTYA  = (datos[,"MTWPL"]*plant.denmb)/1000  #omar GTDM-39        
+     
   mat5=as.matrix(datos[,c("PPH")])
-  #rownames(mat5)=paste(datos[,"REP"],"-",datos[,"Institutional.number"],sep="")
-  #barplot(t(mat5), col=rainbow(3),beside = TRUE,las=2, cex.names=0.5) ## se puede generar 2 paneles o mas para la repeticion
-  #title(main = "Formulario I: Criterios de Selección (fase: floración)", font.main = 4)
-  
   add.vals.DF(fp,Sheet1=Sheets[5],datos,IniC=1,IniR=2,xVal=1,COLOR1="blue",col.n=FALSE, row.n=FALSE)
   
   
@@ -522,7 +477,6 @@ if(!has.data(fb$TNTP) & length(fb$NMTCI)>0 & length(fb$NMTCII)>0 & length(fb$NNo
 		TNTP	= NMTCI + NMTCII + NNoMTP	})			
 if(!has.data(fb$TNTP) & length(fb$NMTP)>0 & length(fb$NNoMTP)>0 ) fb=within(fb,{	
 		TNTP	= NMTP+ NNoMTP})			
-
 
 if(!has.data(fb$TNTPL) & length(fb$TNTP)>0 & length(fb$NPH)>0  ) fb=within(fb,{	
 		TNTPL	= TNTP/NPH	})			
@@ -780,6 +734,9 @@ calc.vars <- function(fp,sheet){
   fb = calculate(fieldbook,inst=inst,mgt=mgt, mtl=mtl, type=typ)
 	save.calcs.to.excel(fb, fp, names(fieldbook),sheetN=sheet)
 }
+
+	
+
 
 	
 
