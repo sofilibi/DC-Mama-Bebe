@@ -1,0 +1,34 @@
+varl = read.xlsx2(wb,sheetName="Var List")
+
+
+
+
+wbf2<-read.xlsx(wb,"F2 Clones_Select_Flowering",h=T)
+wbf3<-read.xlsx(wb,"F3_Clones_Selec_Harvest",h=T)
+wbf4<-read.xlsx(wb,"F4_ Harvest_Mother",h=T)
+wbf5<-read.xlsx(wb,"F5_harvest_Baby",h=T)
+#libro 6 y 7
+wbf8<-read.xlsx(wb,"F7_Dormancy_weight_loss_tuber",h=T)
+wbf9<-read.xlsx(wb,"F8_Selec_clone_Storage ",h=T)
+
+
+rd<-read.xlsx(fp,"Fieldbook",h=T)
+
+databi1<-aggregate(rd[,c(-1,-2,-3)],list(INSTN=rd[,3]),mean,na.rm=TRUE)
+databi2<-aggregate(rd[,c(-1,-2,-3)],list(INSTN=rd[,3]),sd,na.rm=TRUE)
+
+names(databi1)<-paste(names(databi1),"_mean",sep="")
+names(databi2)<-paste(names(databi2),"_sd",sep="")
+
+names(databi1)[1]<-str_replace(names(databi1)[1],"_mean","")
+names(databi2)[1]<-str_replace(names(databi2)[1],"_sd","")
+
+databi_mean<-databi1
+databi_sd<-databi2
+
+
+for(i in 2:ncol(databi_mean)) {
+  a[i]=cbind(databi_mean[i],databi_sd[i])
+  
+}
+a
