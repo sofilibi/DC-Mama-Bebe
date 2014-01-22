@@ -1,6 +1,5 @@
 
 
-
 f4_mean<-aggregate(wbf4[,c(-1,-2,-3)],list(INSTN=wbf4[,3]),mean,na.rm=TRUE)
 f4_mean<-f4_mean[-1]
 names(f4_mean)<-paste(names(f4_mean),"_mean",sep="")
@@ -53,3 +52,22 @@ for(i in 1:17) { b =  c(b,l1+i)}
 f5_bebe=MAT5[,b]
 
 names(f5_bebe)<-paste(names(f5_bebe),"_baby",sep="")
+
+
+
+
+INSTN=unique(wbf4$INSTN)
+mother=data.frame(instb,f4_mama)
+
+INSTN=unique(wbf5$INSTN)
+baby=data.frame(instb,f5_bebe)
+
+
+lm=1:3
+lb=seq(ncol(f5_bebe)+1,ncol(f5_bebe)+3,1)
+lbm=c(lm,lb)
+h=lbm
+for(i in 1:17) { h =  c(h,lbm+3*i)}
+
+
+
