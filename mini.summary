@@ -1,0 +1,10 @@
+head(iris)
+
+A1<-aggregate(iris[,c(1,2,3)],list(G=iris[,5]),mean)[,-1]
+B1<-aggregate(iris[,c(1,2,3)],list(G=iris[,5]),sd)[,-1]
+C1<-aggregate(iris[,c(1,2,3)],list(G=iris[,5]),length)[,-1]
+
+l1=seq(1,ncol(MAT),3)
+L=c(l1,l1+1,l1+2)
+MAT=data.frame(A1,B1,C1)
+MAT=MAT[,L]
