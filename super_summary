@@ -1,0 +1,128 @@
+#fp file
+#sh sheetName
+#selectperiod= SF, SH ,SS
+summarySelect<-function(fp,sh,selectperiod)  
+{
+  wb<-read.xlsx(fp,sheetName=sh,h=T)
+  INSTN<-unique(wb$INSTN)
+  wb_mean<-aggregate(wb[,c("MSGLO","BSGLO")],list(INSTN=wb[,"INSTN"]),mean,na.rm=TRUE)[-1]
+  names(wb_mean)<-paste(names(wb_mean),"_mean_",selectperiod,sep="")
+  wb_sd<-aggregate(wb[,c("MSGLO","BSGLO")],list(INSTN=wb[,"INSTN"]),sd,na.rm=TRUE)[-1]
+  names(wb_sd)<-paste(names(wb_sd),"_sd_",selectperiod,sep="")
+  wb_n<-aggregate(wb[,c("MSGLO","BSGLO")],list(INSTN=wb[,"INSTN"]),length)[-1]
+  names(wb_n)<-paste(names(wb_n),"_n_",selectperiod,sep="")
+  
+  wbSummarySel<-data.frame(wb_n,wb_mean,wb_sd)
+  
+  l1=seq(1,ncol(wbSummarySel),ncol(wb_mean))
+  b=l1
+  n=ncol(wb_mean)-1
+  for(i in 1:n) { b =  c(b,l1+i)} 
+  
+  wbSummarySel<-wbSummarySel[,b]
+  wbSummarySel<-data.frame(INSTN,wbSummarySel)
+  
+  
+  return(wbSummarySel)
+}
+
+summary.yield<-function(fp,sh,trial)
+{
+  #fp=direccion del libro
+  #sh: sheet
+  #trial: mother or baby
+  
+  wb<-read.xlsx(fp,sheetName=sh,h=T)[,-c(4,5)]
+  INSTN<-unique(wb$INSTN)
+  wb_mean<-aggregate(wb[,-c(1,2,3)],list(INSTN=wb[,"INSTN"]),mean,na.rm=TRUE)[-1]
+  names(wb_mean)<-paste(names(wb_mean),"_mean_",trial,sep="")
+  
+  wb_sd<-aggregate(wb[,-c(1,2,3)],list(INSTN=wb[,"INSTN"]),sd,na.rm=TRUE)[-1]
+  names(wb_sd)<-paste(names(wb_sd),"_sd_",trial,sep="")
+  
+  wb_n<-aggregate(wb[,-c(1,2,3)],list(INSTN=wb[,"INSTN"]),length)[-1]
+  names(wb_n)<-paste(names(wb_n),"_n_",trial,sep="")
+ 
+  wbSummaryYld<-data.frame(wb_n,wb_mean,wb_sd)
+  
+  l1=seq(1,ncol(wbSummaryYld),ncol(wb_mean))
+  b=l1
+  n=ncol(wb_mean)-1
+  for(i in 1:n) { b =  c(b,l1+i)} 
+  wbSummaryYld<-wbSummaryYld[,b]
+  
+  wbSummaryYld<-data.frame(INSTN,wbSummaryYld)
+ 
+  return(wbSummaryYld)
+}
+
+summary.organoleptic<-function(fp,sh,trial)
+{
+  #no usar xlsx2 porque lee como caracter todo
+  wb = read.xlsx(fp,sheetName=sh, h=T,stringsAsFactors=F)
+  INSTN=unique(wb$Treatment)
+  names(wb)[1]<-"INSTN"            
+  
+  wb_mean<-aggregate(wb[,c("appearance","taste","texture")],list(INSTN=wb[,"INSTN"]),mean,na.rm=TRUE)[-1]
+  names(wb_mean)<-paste(names(wb_mean),"_mean_",trial,sep="")
+  
+  wb_sd<-aggregate(wb[,c("appearance","taste","texture")],list(INSTN=wb[,"INSTN"]),sd,na.rm=TRUE)[-1]
+  names(wb_sd)<-paste(names(wb_sd),"_sd_",trial,sep="")
+    
+  wb_n<-aggregate(wb[,c("appearance","taste","texture")],list(INSTN=wb[,"INSTN"]),length)[-1]
+  names(wb_n)<-paste(names(wb_n),"_n_",trial,sep="")
+  
+  wbSummaryOrg<-data.frame(wb_n,wb_mean,wb_sd)
+  
+  l1=seq(1,ncol(wbSummaryOrg),ncol(wb_mean))
+  b=l1
+  n=ncol(wb_mean)-1
+  for(i in 1:n) { b =  c(b,l1+i)} 
+  wbSummaryOrg<-wbSummaryOrg[,b]
+  wbSummaryOrg<-data.frame(INSTN,wbSummaryOrg)
+  
+  
+  return(wbSummaryOrg)
+}
+  
+mergeBooks<-function(book1,book2)
+{ 
+  datamerge<-merge(book1,book2,by="INSTN",all=TRUE)
+  INSTN<-datamerge$INSTN
+    
+  lm=1:3
+  lb=seq(ncol(book1[-1])+1,ncol(book1[-1])+3,1)
+  lbm=c(lm,lb)
+  h=lbm
+  n2=(ncol(book1[-1])/3)-1
+  for(i in 1:n2) { h =  c(h,lbm+i)}
+  
+  datamerge<-data.frame(INSTN,datamerge[-1][,h])
+  return(datamerge)
+}
+     
+   
+
+  s2<-summarySelect(fp,"F2 Clones_Select_Flowering","SF")   #1
+  s3<-summarySelect(fp,"F3_Clones_Selec_Harvest","SH")
+  s4<-summary.yield(fp,"F4_ Harvest_Mother","mother")
+  s5<-summary.yield(fp,"F5_harvest_Baby","baby")
+  s6<-summary.organoleptic(fp,"Data_organoleptic_Mother","mother")
+  s7<-summary.organoleptic(fp,"Data_organoleptic_Baby","baby")
+  
+m67<-merge(s6,s7,by="INSTN",all=TRUE)
+m45<-merge(s4,s5,by="INSTN",all=TRUE)
+m23<-merge(s2,s3,by="INSTN",all=TRUE)
+
+m2345=merge(m23,m45,by="INSTN",all=TRUE)
+m234567=merge(m2345,m67,by="INSTN",all=TRUE) #aqui se juntan todos
+
+  
+
+
+
+
+
+
+
+
