@@ -1,0 +1,2083 @@
+###############################################################################
+#
+# TODO: Add comment
+#
+# Oct 9, 2011
+# 10:27:04 PM
+# Author: Raul Eyzaguirre, Reinhard Simon (rsimon), Omar Benites (obenites), Pablo Carhuapoma (pcarhuapoma)
+# (c) International Potato Center
+#
+###############################################################################
+add.pngFile=function(fp,dir1,Sheet1,startRow=1,startColumn=1)
+{
+  wb = loadWorkbook(fp)
+  sheets <- getSheets(wb)
+  sheet <- sheets[[Sheet1]]     
+  addPicture(dir1, sheet,startRow=startRow,startColumn=startColumn)
+  saveWorkbook(wb,fp)
+}    
+
+`carolinaII` <-
+  function (data) 
+  {
+    "set" <- as.factor(data[, 1])
+    "male" <- as.factor(data[, 2])
+    "female" <- as.factor(data[, 3])
+    "replication" <- as.factor(data[, 4])
+    y <- data[, 5]
+    name.y <- names(data)[5]
+    model <- lm(y ~ set + replication %in% set + male %in% 
+                  set + female %in% set + male:female %in% set)
+    
+    cat("Response(y): ", name.y, "\n\n")
+    print(anova(model))
+    cat("\nCV:", cv.model(model), "\tMean:", mean(y), "\n")
+    
+    m <- length(levels(model$model$male))
+    f <- length(levels(model$model$female))
+    s <- length(levels(model$model$set))
+    r <- length(levels(model$model$replication))
+    anva <- as.matrix(anova(model)) ## sacar los cm
+    
+    cat("\n","\n","Variance Components","\n")
+    
+    #var.m <- (anva["set:male", "Mean Sq"] - anva["set:male:female", 
+    #    "Mean Sq"])/(f * r);cat("\n","var.m: ",var.m,"\n")
+    var.m <- (anva["set:male", "Mean Sq"] - anva["set:male:female", 
+                                                 "Mean Sq"])/(f);cat("\n","var.m: ",var.m,"\n")
+    
+    var.f <- (anva["set:female", "Mean Sq"] - anva["set:male:female", 
+                                                   "Mean Sq"])/(m * r);cat("\n","var.f: ",var.f,"\n")
+    var.mf <- (anva["set:male:female", "Mean Sq"] - anva["Residuals", 
+                                                         "Mean Sq"])/r;cat("\n","var.mf: ",var.mf,"\n")
+    var.e <- anva["Residuals", "Mean Sq"];cat("\n","var.e: ",var.e,"\n")
+    
+    cat("\n","\n","Analysis of Variance Based on the Nesting","\n")
+    
+    cuadro <- matrix(NA,7,5)
+    cuadro[,1] = c(anva[1:2,1],sum(anva[3:5,1]),anva[3:6,1]) 
+    cuadro[,2] = c(anva[1:2,3],sum(anva[3:5,3]),anva[3:6,3])  
+    cuadro[4,3] = var.e + r*var.mf + f*r*var.m
+    cuadro[5,3] = var.e + r*var.mf + m*r*var.f
+    cuadro[6,3] = var.e + r*var.mf
+    cuadro[7,3] = var.e
+    cuadro[4,4] = cuadro[4,3]/cuadro[6,3]
+    cuadro[5,4] = cuadro[5,3]/cuadro[6,3]
+    cuadro[6,4] = cuadro[6,3]/cuadro[7,3]
+    cuadro[4,5] = 1-pf(cuadro[4,4],cuadro[4,1],cuadro[4,1])
+    cuadro[5,5] = 1-pf(cuadro[5,4],cuadro[5,1],cuadro[5,1])
+    cuadro[6,5] = 1-pf(cuadro[6,4],cuadro[6,1],cuadro[6,1])
+    
+    colnames(cuadro) = c("Df","Mean Sq","Expect Mean Sq","F value","Pr(>F)") 
+    rownames(cuadro) = c("set","replication/set","fam/set","   male/set","   female/set","   male:female/set","Residuals") 
+    
+    print(cuadro,na.print = "")
+    
+    var.Am <- 4 * var.m
+    var.Af <- 4 * var.f
+    var.D <- 4 * var.mf
+    output <- list(var.Am = var.Am, var.Af = var.Af,var.D = var.D)
+    return(output)
+    
+  }
+
+lineXtester2<-function (replications, lines, testers, y, etiqueta) 
+{
+  name.y <- deparse(substitute(y))
+  cat("\nANALYSIS LINE x TESTER: ", name.y, "\n")
+  replications <- as.factor(replications)
+  lines <- as.factor(lines)
+  testers <- as.factor(testers)
+  datos <- data.frame(Replications = replications, Lines = lines, Testers = testers, Y = y)
+  l <- length(levels(datos[, 2]))
+  r <- length(levels(datos[, 1]))
+  t <- length(levels(datos[, 3]))
+  
+  
+  Treatments <- as.factor(paste(datos[, 2], datos[, 3]))
+  
+  
+  modelo1 <- aov(Y ~ Treatments, data = datos)
+  
+  
+  matriz1 <- as.matrix(anova(modelo1))
+  modelo4 <- aov(Y ~ Lines * Testers, data = datos)
+  matriz4 <- as.matrix(anova(modelo4))
+  datos2 <- na.omit(datos)
+  mm <- tapply(datos2[, 4], datos2[, 2:3], mean, na.rm = TRUE)
+  cmm <- ncol(mm)
+  rmm <- nrow(mm)
+  SCA <- mm
+  for (i in 1:rmm) {
+    for (j in 1:cmm) {
+      SCA[i, j] <- round(mm[i, j] - mean(mm[, j], na.rm = TRUE) - 
+                           mean(mm[i, ], na.rm = TRUE) + mean(mm, na.rm = TRUE), 
+                         3)
+    }
+  }
+  mm <- tapply(datos2[, 4], datos2[, 2], mean, na.rm = TRUE)
+  GCA.lines <- round(mm - mean(datos2[, 4], na.rm = TRUE), 6)
+  mm <- tapply(datos2[, 4], datos2[, 3], mean, na.rm = TRUE)
+  GCA.testers <- round(mm - mean(datos2[, 4], na.rm = TRUE), 3)
+  #Crosses <- as.factor(paste(datos2[, 2], datos2[, 3]))
+  #modelo3 <- aov(Y ~ Crosses, data = datos2)
+  #matriz3 <- as.matrix(anova(modelo3))
+  #datos3 <- subset(datos, is.na(datos[, 2]) | is.na(datos[,  3]))
+  #Parents <- as.factor(paste(datos3[, 2], datos3[, 3]))
+  #modelo2 <- aov(Y ~ Parents, data = datos3)
+  #matriz2 <- as.matrix(anova(modelo2))
+  #matriz5 <- matriz1[2, ] - matriz3[1, ]  # matriz 5 tampoco vaa  ya q la matriz 1 es el en realidad
+  matriz <- rbind(matriz1[1, ], matriz4[1:3, ], matriz1[2, ])
+  total1 <- sum(matriz1[, 1])
+  total2 <- sum(matriz1[, 2])
+  matriz5 <- c(total1, total2, NA, NA, NA)
+  matriz <- rbind(matriz, matriz5)
+  for (i in 1:5) {
+    matriz[i, 3] <- matriz[i, 2]/matriz[i, 1]
+    matriz[i, 4] <- round(matriz[i, 3]/matriz[5, 3], 3)
+    matriz[i, 5] <- round(1 - pf(matriz[i, 4], matriz[i, 
+                                                      1], matriz[5, 1]), 4)
+    if (i == 2 | i == 3) {
+      matriz[i, 4] <- round(matriz[i, 3]/matriz[4, 3], 
+                            3)
+      matriz[i, 5] <- round(1 - pf(matriz[i, 4], matriz[i, 
+                                                        1], matriz[4, 1]), 4)
+    }
+  }
+  matriz[5, 4] <- NA
+  matriz[5, 5] <- NA
+  rownames(matriz) <- c("Treatments", "Lines", "Testers",   "Lines X Testers", "Error", "Total")
+  cm <- matriz[5, 3]
+  s1 <- sqrt(cm/(r * t))
+  s2 <- sqrt(cm/(r * l))
+  s3 <- sqrt(cm/r)
+  s4 <- sqrt(2 * cm/(r * t))
+  s5 <- sqrt(2 * cm/(r * l))
+  s6 <- sqrt(2 * cm/r)
+  cov1 <- (matriz[2, 3] - matriz[4, 3])/(r * t)
+  cov2 <- (matriz[3, 3] - matriz[4, 3])/(r * l)
+  cov3 <- (((l - 1) * matriz[2, 3] + (t - 1) * matriz[3, 3])/(l + 
+                                                                t - 2) - matriz[4, 3])/(r * (2 * l * t - l - t))
+  cov4 <- ((matriz[2, 3] - matriz[5, 3]) + (matriz[3, 3] - matriz[5, 3]) + (matriz[4, 3] - matriz[5, 3]))/(3 * r)    +(6 * r * cov3 - r * (l + t) * cov3)/(3 * r)
+  F <- 0
+  var.A0 <- cov3 * (4/(1 + F))^2
+  var.D0 <- ((matriz[4, 3] - matriz[5, 3])/r) * (2/(1 + F))^2
+  F <- 1
+  var.A1 <- cov3 * (4/(1 + F))^2
+  var.D1 <- ((matriz[4, 3] - matriz[5, 3])/r) * (2/(1 + F))^2
+  #c1 <- matriz[2, 2] * 100/matriz[5, 2]
+  #c2 <- matriz[3, 2] * 100/matriz[5, 2]
+  #c3 <- matriz[4, 2] * 100/matriz[5, 2]
+  
+  cat("\nANOVA for line X tester analysis", "\n================================\n")
+  matriz1 <- matriz[2:5, ]
+  print(matriz1, na.print = "")
+  
+  cat("\nANOVA for line X tester analysis including treatments", 
+      "\n==================================================\n")
+  print(matriz, na.print = "")
+  cat("\nGCA Effects:", "\n===========")
+  cat("\nLines Effects:\n")
+  #print(GCA.lines)
+  print(data.frame(GCA.lines))
+  jpeg(file = paste("myplot_LxT_",etiqueta,".jpeg",sep=""))
+  barplot(GCA.lines, col="lightblue",las=2, cex.names=0.8, ylab=etiqueta)  
+  dev.off()
+  
+  cat("\nTesters Effects:\n")
+  print(GCA.testers)
+  
+  #print(str(GCA.lines))
+  cat("\nSCA Effects:", "\n===========\n")
+  print(SCA)
+  cat("\nStandard Errors for Combining Ability Effects:", "\n=============================================")
+  cat("\nS.E. (gca for line)   :", s1)
+  cat("\nS.E. (gca for tester) :", s2)
+  cat("\nS.E. (sca effect)     :", s3)
+  cat("\nS.E. (gi - gj)line    :", s4)
+  cat("\nS.E. (gi - gj)tester  :", s5)
+  cat("\nS.E. (sij - skl)tester:", s6, "\n")
+  cat("\nGenetic Components:", "\n==================")
+  cat("\nCov H.S. (line)   :", cov1)
+  cat("\nCov H.S. (tester) :", cov2)
+  cat("\nCov H.S. (average):", cov3)
+  cat("\nCov F.S. (average):", cov4)
+  cat("\nF = 0, Aditive genetic variance :", var.A0)
+  cat("\nF = 1, Aditive genetic variance :", var.A1)
+  cat("\nF = 0, Variance due to Dominance:", var.D0)
+  cat("\nF = 1, Variance due to Dominance:", var.D1, "\n")
+  #cat("\nProportional contribution of lines, testers", "\n and their interactions to total variance", 
+  #    "\n===========================================")
+  #cat("\nContributions of lines  :", c1)
+  #cat("\nContributions of testers:", c2)
+  #cat("\nContributions of lxt    :", c3, "\n")
+  return(GCA.lines)
+}
+
+
+estand=function(vec)
+{
+  vect= (vec-mean(vec))/sd(vec)
+  return(vect)
+}
+
+ACP.dat=function(dat,dir,ds)   #dat=datos, #dir=ruta del archivo, ds=mother or baby
+{
+  #boxplot
+  #   png(paste(dir,"/","boxplot.png",sep=""), width=5, height=5, units="in", res=500)
+  #   boxplot(dat[,4:6],col=5,axes=F)
+  #   axis(2,seq(round(min(dat[,4:6])),round(max(dat[,4:6])),1),lwd=2)
+  #   axis(1,at=1:ncol(dat[,4:6]),lab=colnames(dat[,4:6]),lwd=1.5)
+  #   dev.off()
+  
+  ## ACP Todas las variables
+  sink(paste(dir,"results_",ds,".txt",sep=""))
+  #   datt= apply(dat[,4:6],2,estand)
+  #   datt=as.data.frame(datt)
+  #   rownames(datt)=paste(1:nrow(datt),"_",dat[,1],sep="")
+  #   
+  #   mod=prcomp(datt,scale=TRUE)
+  #   print(mod)
+  #   print(mod$x)
+  #   print(summary(mod))
+  #   #Gráfico Biplot:
+  #   sink()
+  
+  data=dat
+  databi<-aggregate(data[,c(4,5,6)],list(Grupo=data[,1]),mean,na.rm=TRUE)
+  datt= apply(databi[,2:4],2,estand)
+  rownames(datt)=paste(1:nrow(datt),"_",databi[,1],sep="")
+  mod=prcomp(datt,scale=TRUE)
+  print(mod)
+  print(mod$x)
+  print(summary(mod))
+  sink()
+  
+  
+  rownames(datt)=paste(1:nrow(datt),sep="")
+  mod=prcomp(datt,scale=TRUE)
+  png(paste(dir,"/","testPC_",ds,".png",sep=""), width=5, height=5, units="in", res=500)
+  biplot(mod,cex=0.6)                  
+  abline(h = 0, v = 0, lty = 2.5, col = "green", lwd = 0.7)
+  dev.off()
+}
+
+calc.anova2 <-function(fp,Sheet1){
+  #  library(XLConnect)
+  #  library(agricolae)
+  #  
+  #	sn = "data/yield-trial-sp-demo-data.xls"
+  #	tpl = c("Fieldbook data","*.xls")
+  #	
+  #	workbook = choose.files(sn, "Choose a fieldbook where you already set parameters!", filters=tpl)
+  wb = loadWorkbook(fp)
+  design <- get.fb.param(fp,"Installation","Experimental design")	
+  val.des <-c("Randomized Complete Block Design (RCBD)")
+  
+  #Sheets=c("F1_Selec_Crit","F2 Clones_Select_Flowering","F3_Clones_Selec_Harvest","F4_ Harvest_Mother", "F5_harvest_Baby", "F6_organoleptic_rural","Data_organoleptic_rural", "F7_Dormancy_weight_loss_tuber", "F8_Selec_clone_Storage ")
+  data = read.xlsx(fp,sheetName=Sheet1, h=T)
+  
+  #datos = guessVariableType(data)
+  datos=data
+  
+  varl = read.xlsx(fp,sheetName="Var List", h=T,stringsAsFactors=F)
+  for(i in 1:5) varl[,i] <- as.character(varl[,i])
+  
+  abb = varl[varl[,"Analyze"]=="x"|varl[,"Analyze"]=="X",2]
+  abb = abb[!is.na(abb)]
+    abb=get.summary.idx(varl)
+
+  #LBs=colnames(datos)
+  validos=match(c(colnames(datos)),abb)
+  validos=validos[!is.na(validos)]
+  abb=abb[validos]
+  
+   
+  lab = varl[varl[,"Analyze"]=="x"|varl[,"Analyze"]=="X",1]
+  lab = lab[!is.na(lab)]
+  lab=lab[validos] 
+    
+    
+   
+   
+  if (design == "Completely Randomized Design (CRD)"){
+    for (i in 1:length(abb)){	
+      
+      modelo <- aov(datos[abb[i]][[1]] ~ factor(datos[,3]), data=datos)
+      
+      #agregar
+      tabla <- anova(modelo)
+      row.names(tabla)[1] <- colnames(datos)[3]
+      attr(tabla,"heading")[2] <- paste("Response:",abb[i])
+      
+      #agregar
+      ipth1 = file.path(getwd(),"temp",paste("aov_dp_", abb[i], "_1.png", sep=""))
+      
+      png(filename = ipth1, width = 450, height = 450)
+      plot(modelo, 1, sub.caption="")
+      dev.off()
+      
+      ipth2 = file.path(getwd(),"temp",paste("aov_dp_", abb[i], "_2.png", sep=""))
+      
+      png(filename = ipth2, width = 450, height = 450)
+      plot(modelo, 2, sub.caption="")
+      dev.off()
+      
+      #adaptar
+      nn=names(na.omit(rstandard(modelo)))
+      btest <- bartlett.test(na.omit(rstandard(modelo)) ~ datos[nn,"INSTN"])
+      btest$data.name <- "standardized residuals by treatments"
+      pv2=btest$p.value
+      ntest <- shapiro.test(rstandard(modelo))
+      pv1=ntest$p.value
+      ntest$data.name <- "standardized residuals"
+      
+      A <- factor(datos[,3])
+      Fc<- tabla[1,5]
+      glib<- df.residual(modelo)
+      cm<- deviance(modelo)/glib
+      
+      # desde aqui se podria ingresar las condicionales
+      
+      # se quitaria
+      #compara <- HSD.test(modelo, "factor(datos[, 3])")
+      
+      fpth = file.path(getwd(),"temp",paste(abb[i],".txt",sep=""))
+      
+      sink(fpth)
+      
+      
+      cat("################################################################################","\n")
+      cat(paste("Analysis for", lab[i]), "\n")
+      
+      cat("################################################################################","\n")
+      cat("################################################################################","\n")
+      print(btest)
+      cat("################################################################################","\n")
+      print(ntest)
+      
+      if(pv1 >= 0.05 & pv2 >= 0.05)
+      {
+        glib<- df.residual(modelo)
+        cm<- deviance(modelo)/glib
+        cat('\n')
+        cat('Analysis of variance','\n')
+        cat('---------------------','\n')
+        print(tabla)
+        
+        if(tabla[1,5]<0.05)
+        {   
+          cat('\n')
+          cat('Tukey multiple comparisons','\n')
+          cat('---------------------------------','\n')
+          compara<-HSD.test(datos[abb[i]][[1]],A,glib,cm)
+          cat('\n')
+          ngraf=paste("V ",abb[i],".jpeg",sep="")
+          jpeg(file= ngraf)
+          bar.group(compara,ylim=c(0,max(datos[abb[i]][[1]])+0.15*max(datos[abb[i]][[1]])),density=4,border="blue")
+          title(cex.main=0.8,main=lab[i])
+          dev.off()
+          
+          
+          
+        }
+      }else{      
+        cat('\n')
+        cat('Multiple comparisons','\n')
+        cat('-----------------------','\n')
+        comparison<-kruskal(datos[abb[i]][[1]], A, alpha = 0.05, group=TRUE)
+        ngraf=paste("V ",abb[i],".jpeg",sep="")
+        
+        cat('\n')
+        cat('True treatment averages','\n')
+        cat('------------------------------------','\n')
+        vppt=aggregate(datos[abb[i]][[1]],list(Tratamiento=A),mean)
+        print(vppt[rev(order(vppt[,2])),])
+        
+        jpeg(file=ngraf)
+        bar.group(comparison,ylim=c(0,max(comparison[,2])+0.2*max(comparison[,2])),density=4,border="red",col="blue")
+        title(cex.main=0.8,main=lab[i])
+        dev.off()
+        
+      }
+      
+      
+      #print(btest)
+      #cat("################################################################################","\n")
+      #print(ntest)
+      #cat("################################################################################","\n","\n")
+      #print(tabla)
+      #cat("\n")
+      #cat("################################################################################","\n","\n")
+      #cat("Tukey's HSD test", "\n", "\n")
+      #print(compara)
+      
+      sink()
+      
+      data = readLines(fpth)
+      add.anova.sheet(data, ipth1,ipth2, fp, sh=abb[i],coln=F)
+      
+    }
+  }
+  if (design == "Randomized Complete Block Design (RCBD)"){
+    for (i in 1:length(abb)){
+      #try((
+      resp = datos[,abb[i]]
+      modelo <- aov(resp ~ factor(INSTN) + factor(REP), data=datos)
+      tabla <- anova(modelo)
+      
+      row.names(tabla)[1] <- "Institutional.number" #colnames(datos)["INSTN"]
+      attr(tabla,"heading")[2] <- paste("Response:",abb[i])
+      ipth1 = file.path(getwd(),paste("aov_dp_", abb[i], "_1.png", sep=""))
+      png(filename = ipth1, width = 450, height = 450)
+      plot(modelo, 1, sub.caption=abb[i])
+      dev.off()
+      ipth2 = file.path(getwd(),paste("aov_dp_", abb[i], "_2.png", sep=""))
+      png(filename = ipth2, width = 450, height = 450)
+      plot(modelo, 2, sub.caption=abb[i])
+      dev.off()
+      
+      nn=names(na.omit(rstandard(modelo)))
+      # levene.test seria mas adecuado
+      btest <- bartlett.test(na.omit(rstandard(modelo)) ~ datos[nn,"INSTN"])
+      #btest <- bartlett.test(rstandard(modelo) ~ datos[,"INSTN"]) # datos[,3]
+      pv2=btest$p.value
+      btest$data.name <- "standardized residuals by treatments"
+      ntest <- shapiro.test(rstandard(modelo))
+      pv1=ntest$p.value
+      ntest$data.name <- "standardized residuals"
+      
+      
+      A <- factor(datos[,3])
+      Rep <- as.factor(datos[,2])
+      Fc<- tabla[1,5]
+      glib<- df.residual(modelo)
+      cm<- deviance(modelo)/glib
+      
+      
+      
+      #compara <- HSD.test(modelo, "factor(INSTN)")
+      fpth = file.path(getwd(),paste(abb[i],".txt",sep=""))
+      
+      
+      #sink(paste(abb[i],".txt",sep=""))
+      sink(fpth)
+      
+      
+      cat("################################################################################","\n")
+      cat(paste("Analysis for", lab[i]), "\n")
+      cat("################################################################################","\n")
+      cat("################################################################################","\n")
+      print(btest)
+      cat("################################################################################","\n")
+      print(ntest)
+      if(pv1 >= 0.05 & pv2 >= 0.05)
+      {
+        glib<- df.residual(modelo)
+        cm<- deviance(modelo)/glib
+        cat('\n')
+        cat('Analysis of variance','\n')
+        cat('---------------------','\n')
+        print(tabla)
+        
+        if(tabla[1,5]<0.05)
+        {   
+          cat('\n')
+          cat('Tukey multiple comparisons','\n')
+          cat('---------------------------------','\n')
+          compara<-HSD.test(datos[abb[i]][[1]],A,glib,cm)
+          cat('\n')
+          ngraf=paste(getwd(),"V ",abb[i],".jpeg",sep="")
+          
+          jpeg(file= ngraf)
+          bar.group(compara,ylim=c(0,max(datos[abb[i]][[1]])+0.15*max(datos[abb[i]][[1]])),density=4,border="blue")
+          title(cex.main=0.8,main=lab[i])
+          dev.off()
+          
+          
+          
+        }
+      }else{      
+        cat('\n')
+        cat('Multiple comparisons','\n')
+        cat('-----------------------','\n')
+        comparison<-friedman( Rep, A, datos[abb[i]][[1]], alpha = 0.05, group=TRUE)
+        ngraf=paste(getwd(),"V ",abb[i],".jpeg",sep="")
+        
+        cat('\n')
+        cat('True treatment averages','\n')
+        cat('------------------------------------','\n')
+        vppt=aggregate(datos[abb[i]][[1]],list(Tratamiento=A),mean)
+        print(vppt[rev(order(vppt[,2])),])
+        
+        jpeg(file=ngraf)
+        bar.group(comparison,ylim=c(0,max(comparison[,2])+0.2*max(comparison[,2])),density=4,border="red",col="blue")
+        title(cex.main=0.8,main=lab[i])
+        dev.off()
+        
+      }
+      
+      
+      #print(btest)
+      #cat("################################################################################","\n")
+      #print(ntest)
+      #cat("################################################################################","\n","\n")
+      #print(tabla)
+      #cat("\n")
+      #cat("################################################################################","\n","\n")
+      #cat("Tukey's HSD test", "\n", "\n")
+      #print(compara)
+      
+      sink()
+      
+      
+      
+      
+      ## old version
+      #sink(fpth)
+      #cat("################################################################################","\n")
+      #cat(paste("Analysis for", lab[i]), "\n")
+      #cat("################################################################################","\n")
+      #print(btest)
+      #cat("################################################################################","\n")
+      #print(ntest)
+      #cat("################################################################################","\n","\n")
+      #print(tabla)
+      #cat("\n")
+      #cat("################################################################################","\n","\n")
+      #cat("Tukey's HSD test", "\n", "\n")
+      #print(compara)
+      #sink()
+      
+      
+      data = readLines(fpth)
+      add.anova.sheet(data, ipth1,ipth2, fp, sh=abb[i],coln=F)
+      #))
+      
+      
+    }
+  }
+  
+
+
+
+}
+
+themode <-function(x){
+  tv=table(x)
+  paste(names(tv[tv==max(tv)]),collapse=", ")
+}
+
+get.summary.idx <- function(varl){
+  idx=as.character(varl$Abbreviations)
+  if(length(varl$Summarize)>0){
+    varl.ix= as.character(varl$Summarize)
+    xx = rep("x",length(varl.ix))
+    idx = as.character(varl$Abbreviations[varl.ix %in% xx])
+  }
+  idx
+}
+
+
+calc.summary <-function(fp){
+  #fp = getFieldBookPath(fn)
+  digits = 2
+  
+  datos	= read.excel(fp, sheetName="Fieldbook")
+  inst   	= read.xlsx2(fp,sheetName="Installation")
+  varl   	= read.xlsx2(fp,sheetName="Var List")
+  mgt		= read.xlsx2(fp,sheetName="Crop_management")
+  mtl		= read.xlsx2(fp,sheetName="Material List")
+  mml		= read.xlsx2(fp,sheetName="Minimal")
+  typ		= as.character(mml[mml$Factor=="Type of Trial","Value"])
+  diseno	= as.character(inst[inst$Factor=="Experimental design","Value"])
+  iden	= "INSTN"
+  
+  cvn=which(names(datos)==iden)	
+  ndatos=datos
+  #TODO check if this 'if' is necessary	
+  if (diseno=="Two-Way Factorial in RCBD" | diseno=="Two-Way Factorial in CRD"){ 
+    
+    ## calculos: media, desviacion estandar, n
+    pp <- cvn
+    cvn <- cvn+1
+    calcula <- function(datos, idx){
+      vvv = datos[,idx]
+      nnn = names(datos)[idx]
+      
+          
+      #print(nnn)
+      subdatos <- subset(datos, vvv!="NA")
+      resumen <- as.data.frame(t(table(subdatos[,c(3,cvn)])))
+      
+      
+      if(is.numeric(vvv)){
+        resumen <- cbind(resumen, round(tapply(vvv, paste(datos[,3],datos[,cvn]), mean, na.rm=T),digits))
+        resumen <- cbind(resumen, round(tapply(vvv, paste(datos[,3],datos[,cvn]), sd, na.rm=T),digits))
+        resumen <- resumen[,c(1,3,4,5)]
+        colnames(resumen)[2:4] <- c(paste(nnn,"n",sep="_"), paste(nnn,"Mean",sep="_"), paste(nnn,"SD",sep="_"))
+      }
+      if(is.factor(vvv)){
+        vvv=as.numeric(as.character(vvv))
+        resumen <- cbind(resumen, tapply(vvv, paste(datos[,3],datos[,cvn]), themod))
+        resumen <- resumen[,c(1,3,4)]
+        #colnames(resumen)[3] <- paste(nnn,"Mode",sep="_")
+        colnames(resumen)[2:3] <- c(paste(nnn,"n",sep="_"), paste(nnn,"Mode",sep="_"))
+      }
+      resumen[,-c(2)]
+    } 	
+    resu <- as.data.frame(t(table(datos[,c(3,cvn)])))
+    resu <- names(datos)[3:cvn]
+  } else{
+    ## calculos: media, desviacion estandar, n
+    pp <- 2
+    calcula <- function(datos, idx){
+      vvv = datos[,idx]
+      nnn = names(datos)[idx]
+      #print(nnn)
+      subdatos <- subset(datos, vvv!="NA")
+      #print(str(subdatos))
+      resumen <- as.data.frame(table(subdatos[,cvn]))
+      names(resumen)[1:2] <- c("INSTN",paste(nnn,"n",sep="_"))
+      if(is.numeric(vvv)){
+        resumen <- cbind(resumen, round(tapply(vvv, datos[,cvn], mean, na.rm=T),digits))
+        resumen <- cbind(resumen, round(tapply(vvv, datos[,cvn], sd, na.rm=T),digits))
+        colnames(resumen)[3:4] <- c( paste(nnn,"Mean",sep="_"), paste(nnn,"sd",sep="_"))
+      }
+      if(is.factor(vvv)){
+        vvv=as.numeric(as.character(vvv))
+        #print(vvv)
+        #datos[,cvn]<-as.integer(as.character(datos[,cvn]))
+        resumen <- cbind(resumen, tapply(vvv, datos[,cvn], themode))
+        colnames(resumen)[3] <- paste(nnn,"Mode",sep="_")
+      }
+      resumen[,-c(1)]
+    } 	
+    datos[,cvn] = as.factor(datos[,cvn])
+    resu <- as.data.frame(levels(datos[,cvn]))
+    colnames(resu) <- iden
+  }
+  #print(datos)
+  nms = get.summary.idx(varl)
+  #print(nms)
+  nds = names(datos)[1:3]
+  #print(nds)
+  nnn = c(nds,nms)
+  #print(nnn)
+  #print(names(datos))
+  datos= datos[,nnn]
+  
+  #TODO handle col idx correctly for differing number of columns in factorial designs
+  
+  #
+  for (i in 4:ncol(datos)){
+    resu = cbind(resu,calcula(datos,i))
+  } 
+  #resu = as.data.frame(resu,stringsAsF=F)
+  shn = "Summary by clone"
+  clear.sheet( shn, fp)
+  
+  wb = loadWorkbook(fp)
+  sheets <- getSheets(wb)
+  
+  sheet = sheets[shn]
+  #clear.sheet(fp, shn)
+  if(exists.sheet(sheet)){
+    removeSheet(wb,shn)	
+    saveWorkbook(wb, fp)
+    sheets <- getSheets(wb)
+  } 
+  
+  sheet = createSheet(wb,shn)
+  
+  resu = as.data.frame(resu)
+  resu[,"INSTN"]=as.character(resu[,"INSTN"])
+  resu  = rbind(names(resu),resu)
+  resu[1,]=as.character(resu[1,])
+  resu[,1]=as.character(resu[,1])
+  
+  #resu[1,1]="INSTN"
+  n     = nrow(resu)
+  m 	  = ncol(resu)
+  rows = createRow(sheet,1:n)
+  sw = FALSE
+  csl = get.cell.styles(wb)
+  cs = csl$header
+  #color="WHITE"
+  for(j in 1:m){
+    if(j==1 ) cs = csl$header#color="LIGHT_GREEN"
+    if(j>1 & str_detect(resu[1,j],"_n")){
+      if(sw) {
+        cs = csl$number_col3 #color="LIGHT_YELLOW"
+      } else cs = csl$number_col2 #color="WHITE"
+      sw=!sw
+    }
+    ac = cs #ac=color
+    for(i in 1:n){
+      if(i==1 ) {
+        cs = csl$header #color="LIGHT_GREEN"
+      } else cs = ac #color=ac
+      cell <- createCell(rows[i], colIndex=j)[[1,1]]
+      value<- resu[i,j]
+      if(!is.null(value)) setCellValue(cell, value)
+      #			cellStyle1 <- createCellStyle(wb, 
+      #					fillForegroundColor=color, fillPattern="SOLID_FOREGROUND")
+      setCellStyle(cell, cs)
+    }
+  }
+  autoSizeColumn(sheet, 1:ncol(resu))
+  saveWorkbook(wb, fp)
+}
+
+
+
+calc.summary.charts <- function(fp){
+  data	= read.excel(fp, sheetName="Fieldbook")
+  # filter out only columns with data
+  data = get.data.only(data = data)
+  dict = get.data.dict(names(data))
+  fc = file.path(getwd(),"temp","charts")
+  if(!file.exists(fc)) dir.create(fc,rec=T)
+  unlink(file.path(fc, paste("*.*")))
+  #print(str(ncol(data)))
+  for (i in 1:ncol(data)){
+    #print(names(data)[i])
+    img = make.chart.name(data = data, i = i)
+    nmd = names(data)[i]
+    fulln = dict[dict$ABBR==nmd,"VAR"]
+    units = dict[dict$ABBR==nmd,"UNIT"]
+    png(filename=img, width=400, height=400)
+    if(!is.factor(data[,i])){	
+      boxplot(data[,i], main=paste("Boxplot of"),sub=fulln, ylab=units)
+    } else {
+      x = as.integer(as.character(data[,i]))
+      
+      fr= table(x)
+      xx = cbind(as.integer(names(fr)), as.numeric(fr))
+      rownames(xx) = xx[,1]
+      xx = xx[,-1]
+      
+      #desc = dict[dict$ABBR==nmd,"DESC"]
+      
+      dotchart(xx, main="Dotchart for",sub=fulln, xlab="Frequency [absolute]")
+    }
+    
+    devAskNewPage(ask=FALSE)
+    dev.off()
+  }
+  
+}
+
+
+calc.descriptive <-function(fp){
+  #fp = getFieldBookPath(fn)
+  data	= read.excel(fp, sheetName="Fieldbook")
+  #	varl   	= read.xlsx2(fp,sheetName="Var List")
+  
+  #	nms = get.summary.idx(varl)
+  #	nds = names(data)[1:3]
+  #	nnn = c(nds,nms)
+  #	datos= data[,nnn]
+  
+  ds = as.data.frame(matrix(NA, nrow=10, ncol=length(data)), stringsAsFactors=F)
+  labels=c("Min.", "1st Qu.", "Median", "Mode","3rd Qu.", "Max.",
+           "Mean", "St.Dev.", "N Valid", "N Miss.")
+  rowlabs = as.data.frame(matrix(labels, nrow=10),
+                          strings.as.factors=F)
+  colnames(ds) <- colnames(data)
+  
+  cuartil <- function(data, p, mv) quantile(data, p, mv)
+  
+  for(i in 1:ncol(data)){
+    if(is.numeric(data[,i])){
+      ds[1,i] <- min(data[,i],na.rm=T)
+      ds[2,i] <- cuartil(data[,i],p=.25, mv=T)
+      ds[3,i] <- cuartil(data[,i],p=.50, mv=T)
+      #ds[4,i] <- themode(round(data[,i],0))
+      ds[5,i] <- cuartil(data[,i],p=.75, mv=T)
+      ds[6,i] <- max(data[,i],na.rm=T)
+      ds[7,i] <- mean(data[,i], na.rm=T)
+      ds[8,i] <- sd(data[,i], na.rm=T)
+      #ds[,i] = signif(ds[,i],4)
+    }
+    if(is.factor(data[,i])){
+      ds[4,i] <- themode(data[,i])
+    }
+    if(is.integer(data[,i])){
+      ds[1,i] <- min(data[,i],na.rm=T)
+      ds[2,i] <- cuartil(data[,i],p=.25, mv=T)
+      ds[3,i] <- cuartil(data[,i],p=.50, mv=T)
+      #ds[4,i] <- themode(data[,i])
+      ds[5,i] <- cuartil(data[,i],p=.75, mv=T)
+      ds[6,i] <- max(data[,i],na.rm=T)
+      ds[7,i] <- mean(data[,i], na.rm=T)
+      ds[8,i] <- sd(data[,i], na.rm=T)
+      #ds[,i] = round(ds[,i],0)
+    }
+    if(!is.character(data[,i])){
+      ds[9,i] <- sum(!is.na(data[,i]))
+      ds[10,i] <- sum(is.na(data[,i]))
+    }
+  }
+  ds = as.data.frame(t(ds))
+  names(ds)=labels
+  
+  vars = row.names(ds)
+  varl = read.xlsx2(fp,sheetName="Var List")
+  p = ncol(varl)-1
+  varl[,2]=as.character(varl[,2])
+  x=ds[vars %in% varl[,2],]
+  
+  wb = loadWorkbook(fp)
+  sheets <- getSheets(wb)
+  sheet = sheets[["Var List"]]
+  csl = get.cell.styles(wb)
+  cs  = csl$header
+  
+  m 	  = ncol(x)
+  #x = as.numeric(as.character(x))
+  rows = getRows(sheet)
+  
+  for(i in 1:ncol(x)) x[,i]=as.numeric(as.character(x[,i]))
+  x = round(x,1)
+  
+  #find the indices of the rows where to put the results
+  ridx = which(varl$Abbreviations %in% row.names(x))+1
+  #writer header
+  cs = csl$header #color="LIGHT_GREEN"
+  for(j in 1:m){
+    col = j+p
+    cell <- createCell(rows[1], colIndex=col)[[1,1]]
+    value<- names(x)[j]
+    setCellValue(cell, value)
+    #		cellStyle1 <- createCellStyle(wb, 
+    #			fillForegroundColor=color, fillPattern="SOLID_FOREGROUND")
+    setCellStyle(cell, cs)
+  }	
+  cs = csl$number_col1 #color="GREY_25_PERCENT"
+  for(i in 1:nrow(x)){
+    for(j in 1:m){
+      col = j+p
+      row = ridx[i]
+      cell <- createCell(rows[row], colIndex=col)[[1,1]]
+      #dfmt ="###0.0"
+      if(j %in% c(4,9,10)) cs = csl$number_col1 #dfmt="###0"
+      if(!is.na(x[i,j]) & (as.character(x[i,j])!="Inf") & (as.character(x[i,j])!="-Inf")){
+        value<-x[i,j]
+        setCellValue(cell, value)
+      } else {
+        setCellValue(cell, "")
+        cs = csl$number_col1 #dfmt =NULL
+      }
+      #		cellStyle1 <- createCellStyle(wb, 
+      #				fillForegroundColor=color, fillPattern="SOLID_FOREGROUND",dataFormat=dfmt)
+      setCellStyle(cell, cs)
+    }	
+  }	
+  
+  autoSizeColumn(sheet, 1:(ncol(x)+3))
+  saveWorkbook(wb, fp)
+}
+
+calc.missing <- function(fp, pb=NULL,ii=NULL, info=NULL){
+  #fp = getFieldBookPath(fn)
+  # get the data with missing data; take advantage of Rs in-built scanning
+  # 1. read data
+  if(!is.null(pb)) setWinProgressBar(pb, ii, sprintf("Preparing missing data file (%s)", info), info)
+  
+  data	= read.excel(fp, sheetName="Fieldbook")
+  # 2. save them to a temporary file in a text format: not necessary: NA introduced by coercion
+  # 4. estimate the missing data using the rfImpute method with 'genoypes' as fixed y
+  # only use columns from INSTN onwards
+  xdata = data
+  ndata = data
+  p = which(names(data)=="INSTN")
+  data = data[,c(p:ncol(data))]
+  # filter out columns with no data at all
+  if(!is.null(pb)) setWinProgressBar(pb, ii, sprintf("Estimating missing data (%s)", info), info)
+  hd = rep(FALSE, ncol(data))
+  for(i in 2:ncol(data)) hd[i]=has.data(data[,i])
+  
+  data = data[,hd]
+  write.csv(data,"check.txt",row.names=F, quote=F)
+  #are there any missing data at all?
+  any.na = which(is.na(data))
+  #print(length(any.na))
+  if(length(any.na)!=0){
+    #print("calc missing")
+    # filter out columns with more than 15% missing values!?
+    data[,2:ncol(data)] = rfImpute(data[,-1],data[,1])[,-1]
+    
+    # copy back columns into the full matrix
+    for(i in 2:ncol(data)) xdata[,names(data)[i]] = data[,i]
+    
+    ##############################################
+    if(!is.null(pb)) setWinProgressBar(pb, ii, sprintf("Saving missing data (%s)", info), info)
+    # 5. then save the results back into the excel table and paint the estimates with a blue background
+    wb = loadWorkbook(fp)
+    sheets <- getSheets(wb)
+    sheet = sheets[["Fieldbook"]]
+    rows = getRows(sheet)
+    
+    csl = get.cell.styles(wb)
+    cs = csl$estimated
+    for(i in p:ncol(xdata)){
+      hdr = names(xdata)[i]
+      #print(hdr)
+      if(hdr %in% names(data)){
+        #print(i)
+        for(r in 1:nrow(xdata)){
+          na = ndata[r,i]
+          #print(na)
+          #print(paste(r,i,"\t"))
+          if(is.na(na)){
+            #print(paste("NA ",r,i))
+            
+            cell <- createCell(rows[(r+1)], colIndex=i)[[1,1]]
+            cmt = getCellComment(cell)
+            txt = ""
+            if(length(cmt)>0){
+              txt = cmt$getString()$toString()
+            } else txt=""
+            cmt = paste(txt,"\n", "Estimated value: ",xdata[(r+1),i],sep="")
+            #print(txt)
+            createCellComment(cell, cmt, author=get.version())					
+            
+            setCellValue(cell, xdata[(r+1),i])
+            setCellStyle(cell, cs)
+          } 
+          
+        }
+      }
+    }
+    saveWorkbook(wb, fp)
+  }
+}
+
+calc.charts <-function(fp){
+  calc.summary.charts(fp)
+  data	= read.excel(fp, sheetName="Fieldbook")
+  # filter out only columns with data
+  data = get.data.only(data = data)
+  #insert into Workbook
+  #clear.sheet(fp, "Charts")
+  
+  #sheet = add.sheet(data, fp, sh="Charts",coln=F)
+  sheetName="Charts"
+  clear.sheet(sheetName, fp)
+  wb = loadWorkbook(fp)
+  
+  #removeSheet(wb, sheetName)
+  #saveWorkbook(wb,fp)
+  #wb = loadWorkbook(fp)
+  
+  sheet <- createSheet(wb,sheetName)
+  x=1
+  y=1
+  for(i in 1:ncol(data)){
+    # check that there are at least five data points
+    
+    img = make.chart.name(data = data, i = i)
+    r = y
+    c = x
+    #print(paste(i,r,c))
+    addPicture(img, sheet, scale=1, startRow=r, startColumn=c)
+    if(i %% 2==0){
+      y = y+25
+      x = 1
+    } else {
+      x = x+7
+    }
+    
+    
+    
+  }
+  
+  saveWorkbook(wb, fp)
+}
+
+get.fb.param <-function(fp,sheet,param){
+  params <- read.xlsx2(fp, sheetName = sheet)
+  for(i in 1:ncol(params)) params[,i]<-as.character(params[,i])
+  params[params$Factor==param,2]
+}
+
+
+add.anova.sheet <- function(mtrx, img1, img2, fp, sh, coln=T) {
+  wb = loadWorkbook(fp)
+  #		sh = "Format checks"
+  removeSheet(wb,sh)
+  saveWorkbook(wb, fp)
+  wb = loadWorkbook(fp)
+  write.xlsx2(mtrx, fp, sheetName=sh, app=T, row.names=F, col.names=coln)
+  wb = loadWorkbook(fp)
+  sheets = getSheets(wb)
+  sheet = sheets[[sh]]
+  
+  
+  cs <- CellStyle(wb) + Font(wb, name="Courier")
+  #print("check 1")
+  rows<-getRows(sheet)
+  for(i in 1:length(rows)) setCellStyle(getCells(rows[i],1)[[1]],cs)
+  
+  #	#if(!is.null(ncol(mtrx))) autoSizeColumn(sheet,1:ncol(mtrx))
+  #	
+  #	addPicture(img1, sheet, startRow=1, startColumn=10)
+  #	addPicture(img2, sheet, startRow=29, startColumn=10)
+  
+  
+  
+  saveWorkbook(wb,fp)
+  
+  
+  
+}
+
+
+
+calc.anova <-function(fp){
+  #	library(XLConnect)
+  #	library(agricolae)
+  #	
+  #	sn = "data/yield-trial-sp-demo-data.xls"
+  #	tpl = c("Fieldbook data","*.xls")
+  #	
+  #	workbook = choose.files(sn, "Choose a fieldbook where you already set parameters!", filters=tpl)
+  
+  mml      = read.xlsx(fp,sheetName="Minimal", stringsAsFactors=F) # reverted to xlsx so all formulas are read as values
+  typ1			= as.character(mml[mml$Factor=="Type of Trial","Value"], stringsAsFactors=F)
+  
+  
+  wb = loadWorkbook(fp)
+  if(typ1=="Mother&Baby"){design <- get.fb.param(fp,"Installation","Experimental design")}else{
+    design <- get.fb.param(fp,"Installation","Experimental design")	
+  }
+  val.des <-c("Randomized Complete Block Design (RCBD)")
+  #if(!design %in% val.des){
+  #  if(length(val.des)==1){
+  #    msg= paste("Currently only analysis for '",val.des[1],"'.",sep="")
+  #  } else msg = paste("Currently only analysis for '",paste(val.des,col=", "),"'.",sep="")
+  #  gmessage(msg,
+  #    icon="info")
+  #  return(FALSE)
+  #}
+  #Sheets2=c("F1_Selec_Crit","F2 Clones_Select_Flowering","F3_Clones_Selec_Harvest","F4_ Harvest_Mother", "F5_harvest_Baby", "F6_organoleptic_rural", "F7_Dormancy_weight_loss_tuber", "F8_Selec_clone_Storage ")
+  
+  if(typ1=="Mother&Baby")
+  {
+    dat = read.xlsx(fp,sheetName="Data_organoleptic_Mother", h=T)  #data mothe
+    
+    #dir="D:/archivos nuevos DataCollector/Mama y Bebe/Hojas de datos - MB/"
+    
+    datb = read.xlsx(fp,sheetName="Data_organoleptic_Baby",h=T) #data baby
+    
+    
+    dir=file.path(getwd(),"temp", sep="")    
+    
+    #Sheets=c("F1_Selec_Crit","F2 Clones_Select_Flowering","F3_Clones_Selec_Harvest","F4_ Harvest_Mother", "F5_harvest_Baby", "F6_organoleptic_rural","Data_organoleptic_rural", "F7_Dormancy_weight_loss_tuber", "F8_Selec_clone_Storage ")
+        
+    #Sheets=c("F1_Selec_Crit","F2 Clones_Select_Flowering","F3_Clones_Selec_Harvest","F4_ Harvest_Mother", "F5_harvest_Baby", "F6_Mother_organoleptic","F7_Baby_organoleptic","F8_Dormancy_weight_loss_tuber","F9_Selec_clone_Storage ")
+    
+    Sheets=c("F1_Selec_Crit","F2 Clones_Select_Flowering","F3_Clones_Selec_Harvest","F4_ Harvest_Mother", "F5_harvest_Baby", "F6_Mother_Organoleptic","F7_Baby_Organoleptic","F8_Dormancy_weight_loss_tuber","F9_Clones_Select_Storage")
+    
+    
+    ACP.dat(dat,dir,"Mother")
+    ACP.dat(datb,dir,"Baby")
+    
+    
+    ## Agregando boxplot y pca al sheet nuevo
+    #dir1=paste(dir,"boxplot.png",sep="")
+    dir2=paste(dir,"testPC_Mother.png",sep="")
+    dir4=paste(dir,"testPC_Baby.png",sep="")
+    
+    
+    
+#     b2="C:/DataCollector/DC4RT/temp/barplot/F1_barplot_harvest.png"
+#     #b3="C:/DataCollector/DC4RT/temp/barplot/F1_barplot_storage.png"
+#     
+#     b4="C:/DataCollector/DC4RT/temp/barplot/F2_Flowering_Global.png"
+#     b5="C:/DataCollector/DC4RT/temp/barplot/F3_Harvest_Global.png"
+    
+    wb = loadWorkbook(fp)
+    sheet <- createSheet(wb, "organoleptic_PCA_image")
+    #addPicture(dir1, sheet,startRow=2,startColumn=2)
+    addPicture(dir2, sheet,startRow=2,startColumn=2)
+    addPicture(dir4, sheet,startRow=35,startColumn=2)
+#     addPicture(b2,sheet,startRow=99,startColumn=2)
+#     addPicture(b4,sheet,startRow=130,startColumn=2)
+#     addPicture(b5,sheet,startRow=155,startColumn=2)
+    saveWorkbook(wb,fp) 
+   
+    
+    #dir3=paste(dir,"results.txt",sep="")
+    dir5=paste(dir,"results_Mother.txt",sep="")
+    dir6=paste(dir,"results_Baby.txt",sep="")
+    
+    #data = readLines(dir3)
+    data=readLines(dir5)
+    databb=readLines(dir6)
+    
+    ##############
+    
+    
+    #add.anova.sheet(data, dir1,dir2, fp, sh="PCA_results",coln=F)
+    add.anova.sheet(data, dir2,dir4,fp, sh="PCA_Mother_results",coln=F)
+    add.anova.sheet(databb,dir2,dir4, fp, sh="PCA_Baby_results",coln=F)
+    
+  
+    
+    ## funciona solo si existe la celda
+    
+    
+    varl= read.xlsx2(fp,sheetName="Var List")
+    vs=get.summary.idx(varl)
+    idx2=c("MSGLO","BSGLO","Plant_Vigor","PGH","Flower","SE")
+    idx3=c("MSGLO","BSGLO","Num_Stolon","Leng_Stolon","Tuber_Apper","Tub_Unif","Tub_Size")    
+    idx4=c("NPH","PPH","NMTP","NNoMTP","NMTPL","MTWP","NoMTWP","TNTP","TNTPL","TTWP","TTWPL","TTYNA","TTYA","MTWPL","MTYNA","MTYA","ATW")
+    
+   
+    
+#     if (any(vs %in% idx2)==TRUE){
+    calc.anova2(fp,Sheet1=Sheets[2])
+#     }
+    
+#     if (any(vs %in% idx3)==TRUE){
+      calc.anova2(fp,Sheet1=Sheets[3])
+#     }
+
+#     if(any(vs %in% idx4)==TRUE)
+#     {
+    calc.anova2(fp,Sheet1=Sheets[4])  #mother
+#     }
+    
+    #calc.anova2(fp,Sheet1=Sheets[5])
+    
+    
+    return(TRUE)
+
+  }else
+  {
+    data = read.xlsx(fp,sheetName="Fieldbook", h=T)
+    datos = guessVariableType(data)
+    
+    varl = read.xlsx(fp,sheetName="Var List", h=T)
+    for(i in 1:5) varl[,i] <- as.character(varl[,i])
+    
+    abb = varl[varl[,"Analyze"]=="x"|varl[,"Analyze"]=="X",2]
+    abb = abb[!is.na(abb)]
+    lab = varl[varl[,"Analyze"]=="x"|varl[,"Analyze"]=="X",1]
+    lab = lab[!is.na(lab)]
+    
+    
+    #	datos <- readWorksheet(wb, sheet = "datac", startRow=1, endRow=-1,
+    #			startCol=1, endCol=-1, header=T)
+    #	
+    #	varl <- readWorksheet(wb, sheet = "Var List", startRow=2, endRow=-1,
+    #			startCol=1, endCol=5, header=F)
+    
+    #	abb = varl[varl[,5]=="x"|varl[,5]=="X",2]
+    #	abb = abb[!is.na(abb)]
+    #	lab = varl[varl[,5]=="x"|varl[,5]=="X",1]
+    #	lab = lab[!is.na(lab)]
+    
+    if (design == "Completely Randomized Design (CRD)"){
+      for (i in 1:length(abb)){	
+        
+        modelo <- aov(datos[abb[i]][[1]] ~ factor(datos[,3]), data=datos)
+        #agregar
+        tabla <- anova(modelo)
+        row.names(tabla)[1] <- colnames(datos)[3]
+        attr(tabla,"heading")[2] <- paste("Response:",abb[i])
+        
+        #agregar
+        ipth1 = file.path(getwd(),"temp",paste("aov_dp_", abb[i], "_1.png", sep=""))
+        
+        png(filename = ipth1, width = 450, height = 450)
+        plot(modelo, 1, sub.caption="")
+        dev.off()
+        
+        ipth2 = file.path(getwd(),"temp",paste("aov_dp_", abb[i], "_2.png", sep=""))
+        
+        png(filename = ipth2, width = 450, height = 450)
+        plot(modelo, 2, sub.caption="")
+        dev.off()
+        
+        #adaptar
+        nn=names(na.omit(rstandard(modelo)))
+        btest <- bartlett.test(na.omit(rstandard(modelo)) ~ datos[nn,"INSTN"])
+        btest$data.name <- "standardized residuals by treatments"
+        pv2=btest$p.value
+        ntest <- shapiro.test(rstandard(modelo))
+        pv1=ntest$p.value
+        ntest$data.name <- "standardized residuals"
+        
+        A <- factor(datos[,3])
+        Fc<- tabla[1,5]
+        glib<- df.residual(modelo)
+        cm<- deviance(modelo)/glib
+        
+        # desde aqui se podria ingresar las condicionales
+        
+        # se quitaria
+        #compara <- HSD.test(modelo, "factor(datos[, 3])")
+        
+        fpth = file.path(getwd(),"temp",paste(abb[i],".txt",sep=""))
+        
+        sink(fpth)
+        
+        
+        cat("################################################################################","\n")
+        cat(paste("Analysis for", lab[i]), "\n")
+        
+        cat("################################################################################","\n")
+        cat("################################################################################","\n")
+        print(btest)
+        cat("################################################################################","\n")
+        print(ntest)
+        
+        if(pv1 >= 0.05 & pv2 >= 0.05)
+        {
+          glib<- df.residual(modelo)
+          cm<- deviance(modelo)/glib
+          cat('\n')
+          cat('Analysis of variance','\n')
+          cat('---------------------','\n')
+          print(tabla)
+          
+          if(tabla[1,5]<0.05)
+          {   
+            cat('\n')
+            cat('Tukey multiple comparisons','\n')
+            cat('---------------------------------','\n')
+            compara<-HSD.test(datos[abb[i]][[1]],A,glib,cm)
+            cat('\n')
+            ngraf=paste("V ",abb[i],".jpeg",sep="")
+            jpeg(file= ngraf)
+            bar.group(compara,ylim=c(0,max(datos[abb[i]][[1]])+0.15*max(datos[abb[i]][[1]])),density=4,border="blue")
+            title(cex.main=0.8,main=lab[i])
+            dev.off()
+            
+            
+            
+          }
+        }else{      
+          cat('\n')
+          cat('Multiple comparisons','\n')
+          cat('-----------------------','\n')
+          comparison<-kruskal(datos[abb[i]][[1]], A, alpha = 0.05, group=TRUE)
+          ngraf=paste("V ",abb[i],".jpeg",sep="")
+          
+          cat('\n')
+          cat('True treatment averages','\n')
+          cat('------------------------------------','\n')
+          vppt=aggregate(datos[abb[i]][[1]],list(Tratamiento=A),mean)
+          print(vppt[rev(order(vppt[,2])),])
+          
+          jpeg(file=ngraf)
+          bar.group(comparison,ylim=c(0,max(comparison[,2])+0.2*max(comparison[,2])),density=4,border="red",col="blue")
+          title(cex.main=0.8,main=lab[i])
+          dev.off()
+          
+        }
+        
+        
+        #print(btest)
+        #cat("################################################################################","\n")
+        #print(ntest)
+        #cat("################################################################################","\n","\n")
+        #print(tabla)
+        #cat("\n")
+        #cat("################################################################################","\n","\n")
+        #cat("Tukey's HSD test", "\n", "\n")
+        #print(compara)
+        
+        sink()
+        
+        data = readLines(fpth)
+        add.anova.sheet(data, ipth1,ipth2, fp, sh=abb[i],coln=F)
+        
+      }
+    }
+    if (design == "Randomized Complete Block Design (RCBD)"){
+      for (i in 1:length(abb)){
+        #try((
+        resp = datos[,abb[i]]
+        modelo <- aov(resp ~ factor(INSTN) + factor(REP), data=datos)
+        tabla <- anova(modelo)
+        
+        row.names(tabla)[1] <- "INSTN" #colnames(datos)["INSTN"]
+        attr(tabla,"heading")[2] <- paste("Response:",abb[i])
+        ipth1 = file.path(getwd(),"temp",paste("aov_dp_", abb[i], "_1.png", sep=""))
+        png(filename = ipth1, width = 450, height = 450)
+        plot(modelo, 1, sub.caption=abb[i])
+        dev.off()
+        ipth2 = file.path(getwd(),"temp",paste("aov_dp_", abb[i], "_2.png", sep=""))
+        png(filename = ipth2, width = 450, height = 450)
+        plot(modelo, 2, sub.caption=abb[i])
+        dev.off()
+        
+        nn=names(na.omit(rstandard(modelo)))
+        # levene.test seria mas adecuado
+        btest <- bartlett.test(na.omit(rstandard(modelo)) ~ datos[nn,"INSTN"])
+        #btest <- bartlett.test(rstandard(modelo) ~ datos[,"INSTN"]) # datos[,3]
+        pv2=btest$p.value
+        btest$data.name <- "standardized residuals by treatments"
+        ntest <- shapiro.test(rstandard(modelo))
+        pv1=ntest$p.value
+        ntest$data.name <- "standardized residuals"
+        
+        
+        A <- factor(datos[,3])
+        Rep <- as.factor(datos[,2])
+        Fc<- tabla[1,5]
+        glib<- df.residual(modelo)
+        cm<- deviance(modelo)/glib
+        
+        
+        
+        #compara <- HSD.test(modelo, "factor(INSTN)")
+        fpth = file.path(getwd(),"temp",paste(abb[i],".txt",sep=""))
+        
+        
+        #sink(paste(abb[i],".txt",sep=""))
+        sink(fpth)
+        
+        
+        cat("################################################################################","\n")
+        cat(paste("Analysis for", lab[i]), "\n")
+        cat("################################################################################","\n")
+        cat("################################################################################","\n")
+        print(btest)
+        cat("################################################################################","\n")
+        print(ntest)
+        if(pv1 >= 0.05 & pv2 >= 0.05)
+        {
+          glib<- df.residual(modelo)
+          cm<- deviance(modelo)/glib
+          cat('\n')
+          cat('Analysis of variance','\n')
+          cat('---------------------','\n')
+          print(tabla)
+          
+          if(tabla[1,5]<0.05)
+          {   
+            cat('\n')
+            cat('Tukey multiple comparisons','\n')
+            cat('---------------------------------','\n')
+            compara<-HSD.test(datos[abb[i]][[1]],A,glib,cm)
+            cat('\n')
+            ngraf=paste(getwd(),"/temp/","V ",abb[i],".jpeg",sep="")
+            
+            jpeg(file= ngraf)
+            bar.group(compara,ylim=c(0,max(datos[abb[i]][[1]])+0.15*max(datos[abb[i]][[1]])),density=4,border="blue")
+            title(cex.main=0.8,main=lab[i])
+            dev.off()
+            
+            
+            
+          }
+        }else{      
+          cat('\n')
+          cat('Multiple comparisons','\n')
+          cat('-----------------------','\n')
+          comparison<-friedman( Rep, A, datos[abb[i]][[1]], alpha = 0.05, group=TRUE)
+          ngraf=paste(getwd(),"/temp/","V ",abb[i],".jpeg",sep="")
+          
+          cat('\n')
+          cat('True treatment averages','\n')
+          cat('------------------------------------','\n')
+          vppt=aggregate(datos[abb[i]][[1]],list(Tratamiento=A),mean)
+          print(vppt[rev(order(vppt[,2])),])
+          
+          jpeg(file=ngraf)
+          bar.group(comparison,ylim=c(0,max(comparison[,2])+0.2*max(comparison[,2])),density=4,border="red",col="blue")
+          title(cex.main=0.8,main=lab[i])
+          dev.off()
+          
+        }
+        
+        
+        #print(btest)
+        #cat("################################################################################","\n")
+        #print(ntest)
+        #cat("################################################################################","\n","\n")
+        #print(tabla)
+        #cat("\n")
+        #cat("################################################################################","\n","\n")
+        #cat("Tukey's HSD test", "\n", "\n")
+        #print(compara)
+        
+        sink()
+        
+        
+        
+        
+        ## old version
+        #sink(fpth)
+        #cat("################################################################################","\n")
+        #cat(paste("Analysis for", lab[i]), "\n")
+        #cat("################################################################################","\n")
+        #print(btest)
+        #cat("################################################################################","\n")
+        #print(ntest)
+        #cat("################################################################################","\n","\n")
+        #print(tabla)
+        #cat("\n")
+        #cat("################################################################################","\n","\n")
+        #cat("Tukey's HSD test", "\n", "\n")
+        #print(compara)
+        #sink()
+        data = readLines(fpth)
+        add.anova.sheet(data, ipth1,ipth2, fp, sh=abb[i],coln=F)
+        #))
+        
+        
+      }
+    }
+    #if (diseno == "Balanced Incomplete Block Design (BIBD)"){
+    #}
+    #if (diseno == "Latin Square Design"){
+    #}
+    if (design == "Two-Way Factorial in CRD (F2CRD)"){
+      datos[,3]= as.factor(datos[,3])
+      datos[,4]= as.factor(datos[,4])
+      colnames(datos)[c(3,4)]=c("A_FACTOR","B_FACTOR")
+      
+      
+      for (i in 1:length(abb)){
+        resp = datos[,abb[i]]
+        modelo <- aov(resp ~ A_FACTOR+B_FACTOR+A_FACTOR*B_FACTOR, data=datos)
+        tabla <- anova(modelo)
+        
+        #row.names(tabla)[1] <- "INSTN" #colnames(datos)["INSTN"]
+        attr(tabla,"heading")[2] <- paste("Response:",abb[i])
+        ipth1 = file.path(getwd(),"temp",paste("aov_dp_", abb[i], "_1.png", sep=""))
+        png(filename = ipth1, width = 450, height = 450)
+        plot(modelo, 1, sub.caption=abb[i])
+        dev.off()
+        ipth2 = file.path(getwd(),"temp",paste("aov_dp_", abb[i], "_2.png", sep=""))
+        png(filename = ipth2, width = 450, height = 450)
+        plot(modelo, 2, sub.caption=abb[i])
+        dev.off()
+        
+        nn=names(na.omit(rstandard(modelo)))
+        # levene.test seria mas adecuado
+        #btest <- bartlett.test(na.omit(rstandard(modelo)) ~ datos[nn,"INSTN"])
+        #btest <- bartlett.test(rstandard(modelo) ~ datos[,"INSTN"]) # datos[,3]
+        #pv2=btest$p.value
+        #btest$data.name <- "standardized residuals by treatments"
+        #ntest <- shapiro.test(rstandard(modelo))
+        #pv1=ntest$p.value
+        #ntest$data.name <- "standardized residuals"
+        
+        
+        A <- factor(datos[,3])
+        B  <- as.factor(datos[,4])
+        Rep <- as.factor(datos[,2])
+        
+        glib<- df.residual(modelo)
+        cm<- deviance(modelo)/glib
+        
+        
+        fpth = file.path(getwd(),"temp",paste(abb[i],".txt",sep=""))
+        
+        #sink(paste(abb[i],".txt",sep=""))
+        sink(fpth)
+        cat("################################################################################","\n")
+        cat(paste("Analysis for", lab[i]), "\n")
+        cat("################################################################################","\n")
+        #cat("################################################################################","\n")
+        #print(btest)
+        #cat("################################################################################","\n")
+        #print(ntest)
+        
+        
+        cat('\n')
+        cat('Analysis of variance','\n')
+        cat('---------------------','\n')
+        print(tabla)
+        cat('\n')
+        
+        mati=t(tapply(datos[abb[i]][[1]],data.frame(A,B),sum,na.rm=F))
+        sumf=apply(mati,1,sum,na.rm=T)
+        sumc=apply(mati,2,sum,na.rm=T)
+        
+        glA=length(unique(A))-1
+        glB=length(unique(B))-1
+        nr=length(unique(Rep))
+        
+        sc=function(vec,nr){
+          n=length(vec)
+          scv=(sum(vec^2,na.rm=T))/nr-((sum(vec,na.rm=T))^2)/(nr*n);return(scv)}
+        
+        sc1=apply(mati,1,sc,nr)
+        sc2=apply(mati,2,sc,nr)
+        sct=c(sc2,sc1)
+        
+        etiA=names(table(A))
+        etiB=names(table(B))
+        
+        eti=c(paste('B',etiA,sep="_"),paste('A',etiB,sep="_"))
+        
+        gls=c(rep(glB,glA+1),rep(glA,glB+1))
+        CM=sct/gls
+        Fc=CM/cm
+        
+        
+        if(tabla[3,5]<0.05){
+          
+          anvaf=data.frame(Combinaciones=eti,GL=gls,SC=sct,CM=CM,Fc=Fc,P_value=1-pf(Fc,gls,glib))
+          
+          cat("\n","\n","%%%%% Analysis of variance for each treatment || Simple effects %%%%%","\n","\n")
+          print(anvaf)
+          
+          infs=which(anvaf$P_value<0.05)
+          
+          anvafs=anvaf[infs,]
+          
+          mat=cbind(data.frame(A),B,Rep,datos[abb[i]][[1]])
+          kvar=lab[i]
+          colnames(mat)=c('A','B','Rep',kvar)
+          
+          efectA=length(intersect(rownames(anvafs),names(table(A))))
+          efectB=length(intersect(rownames(anvafs),names(table(B))))
+          
+          if(efectA>0 & efectB==0){
+            for(j in 1: efectA){
+              subs=subset(mat,mat[,1]==rownames(anvafs)[j])
+              cat("\n","%%%%% Effect of B in ",rownames(anvafs)[j],"%%%%%","\n")
+              compara<-HSD.test(subs[,4],subs[,2],glib,cm)
+              print(compara)
+            }
+          }
+          
+          if(efectA==0 & efectB>0){
+            for(j in 1: efectB){
+              subs=subset(mat,mat[,2]==rownames(anvafs)[j])
+              cat("\n","%%%%% Effect of A in ",rownames(anvafs)[j],"%%%%%","\n")
+              compara<-HSD.test(subs[,4],subs[,1],glib,cm)
+              print(compara)
+            }
+          }
+          
+          if(efectA>0 & efectB>0){
+            for(j in 1: efectA){
+              subs=subset(mat,mat[,1]==rownames(anvafs)[j])
+              cat("\n","%%%%% Effect of B in ",rownames(anvafs)[j],"%%%%%","\n")
+              compara<-HSD.test(subs[,4],subs[,2],glib,cm)
+              print(compara)
+            }
+            
+            for(j in efectA+1: efectB){
+              subs=subset(mat,mat[,2]==rownames(anvafs)[j])
+              cat("\n","%%%%% Effect of A in ",rownames(anvafs)[j],"%%%%%","\n")
+              compara<-HSD.test(subs[,4],subs[,1],glib,cm)
+              print(compara)
+            }
+          } 
+          
+        }else{     
+          if(tabla[2,5]<0.05){
+            Y=datos[abb[i]][[1]]
+            cat("\n","%%%%% Effect of B %%%%%","\n")
+            compara<-HSD.test(Y,B,glib,cm)
+            print(compara)
+          }
+          if(tabla[1,5]<0.05){
+            Y=datos[abb[i]][[1]]
+            cat("\n","%%%%% Effect of A %%%%%","\n")
+            compara<-HSD.test(Y,A,glib,cm)
+            print(compara)
+          }
+        }
+        
+        cat("\n","%%%%% COMPARISONS WITH RESPECT TO EACH COMPONENT %%%%%","\n")
+        print(TukeyHSD(modelo))
+        
+        cat('\n')
+        cat('Non parametric analysis - Multiple comparisons - AxB','\n')
+        cat('--------------------------------------------------','\n')
+        FacAB=paste(A,B)
+        
+        #comparison<-kruskal(datos[abb[i]][[1]], FacAB, alpha = 0.05, group=TRUE)
+        comparison<-kruskal(resp, FacAB, alpha = 0.05, group=TRUE)        
+        ngraf=paste(getwd(),"/temp/","V ",abb[i],".jpeg",sep="")
+        
+        cat('\n')
+        cat('True treatment averages','\n')
+        cat('------------------------------------','\n')
+        #vppt=aggregate(datos[abb[i]][[1]],list(Tratamiento=FacAB),mean)
+        vppt=aggregate(resp,list(Tratamiento=FacAB),mean)        
+        print(vppt[rev(order(vppt[,2])),])
+        jpeg(file=ngraf)
+        bar.group(comparison,ylim=c(0,max(comparison[,2])+0.2*max(comparison[,2])),density=4,border="red",col="blue")
+        title(cex.main=0.8,main=lab[i])
+        dev.off()
+        
+        sink()
+        
+        
+        data = readLines(fpth)
+        add.anova.sheet(data, ipth1,ipth2, fp, sh=abb[i],coln=F)
+        
+      }	
+    }	
+    if (design == "Two-Way Factorial in RCBD (F2RCBD)"){
+      datos[,"Pesticide"]= as.factor(datos[,"Pesticide"])
+      datos[,"INSTN"]= as.factor(datos[,"INSTN"])
+      colnames(datos)[c(3,4)]=c("A_Pesticide","B_INSTN")
+      
+      for (i in 1:length(abb)){
+        resp = datos[,abb[i]]
+        modelo <- aov(resp ~ factor(REP)+ A_Pesticide+B_INSTN+A_Pesticide*B_INSTN, data=datos)
+        tabla <- anova(modelo)
+        
+        #row.names(tabla)[1] <- "INSTN" #colnames(datos)["INSTN"]
+        attr(tabla,"heading")[2] <- paste("Response:",abb[i])
+        ipth1 = file.path(getwd(),"temp",paste("aov_dp_", abb[i], "_1.png", sep=""))
+        png(filename = ipth1, width = 450, height = 450)
+        plot(modelo, 1, sub.caption=abb[i])
+        dev.off()
+        ipth2 = file.path(getwd(),"temp",paste("aov_dp_", abb[i], "_2.png", sep=""))
+        png(filename = ipth2, width = 450, height = 450)
+        plot(modelo, 2, sub.caption=abb[i])
+        dev.off()
+        
+        nn=names(na.omit(rstandard(modelo)))
+        # levene.test seria mas adecuado
+        #btest <- bartlett.test(na.omit(rstandard(modelo)) ~ datos[nn,"INSTN"])
+        #btest <- bartlett.test(rstandard(modelo) ~ datos[,"INSTN"]) # datos[,3]
+        #pv2=btest$p.value
+        #btest$data.name <- "standardized residuals by treatments"
+        #ntest <- shapiro.test(rstandard(modelo))
+        #pv1=ntest$p.value
+        #ntest$data.name <- "standardized residuals"
+        
+        
+        A <- factor(datos[,3])
+        B  <- as.factor(datos[,4])
+        Rep <- as.factor(datos[,2])
+        
+        glib<- df.residual(modelo)
+        cm<- deviance(modelo)/glib
+        
+        
+        fpth = file.path(getwd(),"temp",paste(abb[i],".txt",sep=""))
+        
+        #sink(paste(abb[i],".txt",sep=""))
+        sink(fpth)
+        cat("################################################################################","\n")
+        cat(paste("Analysis for", lab[i]), "\n")
+        cat("################################################################################","\n")
+        #cat("################################################################################","\n")
+        #print(btest)
+        #cat("################################################################################","\n")
+        #print(ntest)
+        
+        
+        cat('\n')
+        cat('Analysis of variance','\n')
+        cat('---------------------','\n')
+        print(tabla)
+        cat('\n')
+        
+        mati=t(tapply(datos[abb[i]][[1]],data.frame(A,B),sum,na.rm=F))
+        sumf=apply(mati,1,sum,na.rm=T)
+        sumc=apply(mati,2,sum,na.rm=T)
+        
+        glA=length(unique(A))-1
+        glB=length(unique(B))-1
+        nr=length(unique(Rep))
+        
+        sc=function(vec,nr){
+          n=length(vec)
+          scv=(sum(vec^2,na.rm=T))/nr-((sum(vec,na.rm=T))^2)/(nr*n);return(scv)}
+        
+        sc1=apply(mati,1,sc,nr)
+        sc2=apply(mati,2,sc,nr)
+        sct=c(sc2,sc1)
+        
+        etiA=names(table(A))
+        etiB=names(table(B))
+        
+        eti=c(paste('B',etiA,sep="_"),paste('A',etiB,sep="_"))
+        
+        gls=c(rep(glB,glA+1),rep(glA,glB+1))
+        CM=sct/gls
+        Fc=CM/cm
+        
+        if(tabla[4,5]<0.05){
+          
+          anvaf=data.frame(Combinaciones=eti,GL=gls,SC=sct,CM=CM,Fc=Fc,P_value=1-pf(Fc,gls,glib))
+          
+          cat("\n","\n","%%%%% Analysis of variance for each treatment || Simple effects %%%%%","\n","\n")
+          print(anvaf)
+          
+          infs=which(anvaf$P_value<0.05)
+          
+          anvafs=anvaf[infs,]
+          
+          mat=cbind(data.frame(A),B,Rep,datos[abb[i]][[1]])
+          kvar=lab[i]
+          colnames(mat)=c('A','B','Rep',kvar)
+          
+          efectA=length(intersect(rownames(anvafs),names(table(A))))
+          efectB=length(intersect(rownames(anvafs),names(table(B))))
+          
+          
+          if(efectA>0 & efectB==0){
+            for(j in 1: efectA){
+              subs=subset(mat,mat[,1]==rownames(anvafs)[j])
+              cat("\n","%%%%% Effect of B in ",rownames(anvafs)[j],"%%%%%","\n")
+              compara<-HSD.test(subs[,4],subs[,2],glib,cm)
+              print(compara)
+            }
+          }
+          
+          if(efectA==0 & efectB>0){
+            for(j in 1: efectB){
+              subs=subset(mat,mat[,2]==rownames(anvafs)[j])
+              cat("\n","%%%%% Effect of A in ",rownames(anvafs)[j],"%%%%%","\n")
+              compara<-HSD.test(subs[,4],subs[,1],glib,cm)
+              print(compara)
+            }
+          }
+          
+          if(efectA>0 & efectB>0){
+            for(j in 1: efectA){
+              subs=subset(mat,mat[,1]==rownames(anvafs)[j])
+              cat("\n","%%%%% Effect of B in ",rownames(anvafs)[j],"%%%%%","\n")
+              compara<-HSD.test(subs[,4],subs[,2],glib,cm)
+              print(compara)
+            }
+            
+            for(j in efectA+1: efectB){
+              subs=subset(mat,mat[,2]==rownames(anvafs)[j])
+              cat("\n","%%%%% Effect of A in ",rownames(anvafs)[j],"%%%%%","\n")
+              compara<-HSD.test(subs[,4],subs[,1],glib,cm)
+              print(compara)
+            }
+          } 
+          
+        }else{     
+          if(tabla[3,5]<0.05){
+            Y=datos[abb[i]][[1]]
+            cat("\n","%%%%% Effect of B %%%%%","\n")
+            compara<-HSD.test(Y,B,glib,cm)
+            print(compara)
+          }
+          if(tabla[2,5]<0.05){
+            Y=datos[abb[i]][[1]]
+            cat("\n","%%%%% Effect of A %%%%%","\n")
+            compara<-HSD.test(Y,A,glib,cm)
+            print(compara)
+          }
+        }
+        
+        cat("\n","%%%%% COMPARISONS WITH RESPECT TO EACH COMPONENT %%%%%","\n")
+        print(TukeyHSD(modelo))
+        
+        cat('\n')
+        cat('Non parametric analysis - Multiple comparisons - AxB','\n')
+        cat('--------------------------------------------------','\n')
+        FacAB=paste(A,B)
+        comparison<-friedman(Rep,FacAB,datos[abb[i]][[1]],alpha=0.05,group=TRUE) ## VERIFICAR PARA EL R 2.14
+        ngraf=paste(getwd(),"/temp/","V ",abb[i],".jpeg",sep="")
+        
+        cat('\n')
+        cat('True treatment averages','\n')
+        cat('------------------------------------','\n')
+        vppt=aggregate(datos[abb[i]][[1]],list(Tratamiento=FacAB),mean)
+        print(vppt[rev(order(vppt[,2])),])
+        jpeg(file=ngraf)
+        bar.group(comparison,ylim=c(0,max(comparison[,2])+0.2*max(comparison[,2])),density=4,border="red",col="blue")
+        title(cex.main=0.8,main=lab[i])
+        dev.off()
+        
+        sink()
+        
+        
+        data = readLines(fpth)
+        add.anova.sheet(data, ipth1,ipth2, fp, sh=abb[i],coln=F)
+        
+        
+        
+      }	
+    }
+    if (design == "Split Plot with Plots in CRD (SPCRD)"){
+      datos[,3]= as.factor(datos[,3])
+      datos[,4]= as.factor(datos[,4])
+      datos[,"PLOT"]= as.factor(datos[,"PLOT"])
+      colnames(datos)[c(3,4)]=c("A_FACTOR","B_FACTOR")
+      
+      for (i in 1:length(abb)){
+        resp = datos[,abb[i]]
+        modelo <-aov(resp~A_FACTOR*B_FACTOR+Error(PLOT),data=datos) 
+        
+        
+        fpth = file.path(getwd(),"temp",paste(abb[i],".txt",sep=""))
+        
+        sink(fpth)
+        cat("################################################################################","\n")
+        cat(paste("Analysis for", lab[i]), "\n")
+        cat("################################################################################","\n")
+        
+        cat('\n')
+        cat('Analysis of variance','\n')
+        cat('---------------------','\n')
+        print(summary(modelo))
+        cat('\n')
+        
+        # informacion del modelo 
+        gl.error.a<-modelo$PLOT$df.residual 
+        gl.error.b<-modelo$Within$df.residual 
+        x<-modelo$PLOT$residuals 
+        y<-modelo$Within$residuals 
+        sc.error.a<-sum(x^2) 
+        sc.error.b<-sum(y^2) 
+        cm.a<-sc.error.a/gl.error.a 
+        cm.b<-sc.error.b/gl.error.b 
+        # Determina el promedio general del experimento 
+        attach(datos) 
+        promedio <- mean(resp) 
+        # Determina el numero de niveles de los factores 
+        a<-length(levels(A_FACTOR)) 
+        b<-length(levels(B_FACTOR)) 
+        # Halla los coeficientes de variacion 
+        cv.a <- sqrt(cm.a/b)*100/promedio 
+        cv.b <- sqrt(cm.b)*100/promedio 
+        
+        cat('\n')
+        cat('Coefficient of variation A - between','\n')
+        cat('---------------------','\n')
+        print(cv.a)
+        cat('\n')
+        cat('\n')
+        cat('Coefficient of variation B - within','\n')
+        cat('---------------------','\n')
+        print(cv.b)
+        cat('\n')
+        
+        cat('\n')
+        cat('Multiple comparisons of the average in A - between','\n')
+        cat('--------------------------------------------------','\n')
+        compara.a<-LSD.test(resp,A_FACTOR,gl.error.a,cm.a) 
+        
+        cat('\n')
+        cat('Multiple comparisons of the average in B - within','\n')
+        cat('--------------------------------------------------','\n')
+        compara.b<-LSD.test(resp,B_FACTOR,gl.error.b,cm.b) 
+        detach(datos)
+        
+        sink()
+        
+        
+        data = readLines(fpth)
+        add.anova.sheet(data, ipth1,ipth2, fp, sh=abb[i],coln=F)
+      }	
+    }
+    if (design == "Split Plot with Plots in RCBD (SPRCBD)"){
+      datos[,3]= as.factor(datos[,3])
+      datos[,4]= as.factor(datos[,4])
+      datos[,"PLOT"]= as.factor(datos[,"PLOT"])
+      datos[,"REP"]= as.factor(datos[,"REP"])
+      colnames(datos)[c(3,4)]=c("A_FACTOR","B_FACTOR")
+      
+      for (i in 1:length(abb)){
+        resp = datos[,abb[i]]
+        modelo <-aov(resp~REP+A_FACTOR*B_FACTOR+Error(PLOT),data=datos) 
+        
+        
+        fpth = file.path(getwd(),"temp",paste(abb[i],".txt",sep=""))
+        
+        sink(fpth)
+        cat("################################################################################","\n")
+        cat(paste("Analysis for", lab[i]), "\n")
+        cat("################################################################################","\n")
+        
+        cat('\n')
+        cat('Analysis of variance','\n')
+        cat('---------------------','\n')
+        print(summary(modelo))
+        cat('\n')
+        
+        # informacion del modelo 
+        gl.error.a<-modelo$PLOT$df.residual 
+        gl.error.b<-modelo$Within$df.residual 
+        x<-modelo$PLOT$residuals 
+        y<-modelo$Within$residuals 
+        sc.error.a<-sum(x^2) 
+        sc.error.b<-sum(y^2) 
+        cm.a<-sc.error.a/gl.error.a 
+        cm.b<-sc.error.b/gl.error.b 
+        # Determina el promedio general del experimento 
+        attach(datos) 
+        promedio <- mean(resp) 
+        # Determina el numero de niveles de los factores 
+        a<-length(levels(A_FACTOR)) 
+        b<-length(levels(B_FACTOR)) 
+        # Halla los coeficientes de variacion 
+        cv.a <- sqrt(cm.a/b)*100/promedio 
+        cv.b <- sqrt(cm.b)*100/promedio 
+        
+        cat('\n')
+        cat('Coefficient of variation A - between','\n')
+        cat('---------------------','\n')
+        print(cv.a)
+        cat('\n')
+        cat('\n')
+        cat('Coefficient of variation B - within','\n')
+        cat('---------------------','\n')
+        print(cv.b)
+        cat('\n')
+        
+        cat('\n')
+        cat('Multiple comparisons of the average in A - between','\n')
+        cat('--------------------------------------------------','\n')
+        compara.a<-LSD.test(resp,A_FACTOR,gl.error.a,cm.a) 
+        
+        cat('\n')
+        cat('Multiple comparisons of the average in B - within','\n')
+        cat('--------------------------------------------------','\n')
+        compara.b<-LSD.test(resp,B_FACTOR,gl.error.b,cm.b) 
+        detach(datos)
+        
+        sink()
+        
+        
+        data = readLines(fpth)
+        add.anova.sheet(data, ipth1,ipth2, fp, sh=abb[i],coln=F)
+      }	
+      
+    }
+    if (design == "Alpha(0,1) Design (A01D)"){
+      datos[,"REP"]= as.factor(datos[,"REP"])
+      datos[,4]= as.factor(datos[,4])
+      datos[,"BLOCK"]= as.factor(datos[,"BLOCK"])
+      colnames(datos)[4]="TREATMENT"
+      
+      for (i in 1:length(abb)){
+        resp = datos[,abb[i]]
+        modelo <-aov(resp~TREATMENT+BLOCK%in%REP,data=datos) 
+        tabla <- anova(modelo)
+        
+        #row.names(tabla)[1] <- "INSTN" #colnames(datos)["INSTN"]
+        attr(tabla,"heading")[2] <- paste("Response:",abb[i])
+        ipth1 = file.path(getwd(),"temp",paste("aov_dp_", abb[i], "_1.png", sep=""))
+        png(filename = ipth1, width = 450, height = 450)
+        plot(modelo, 1, sub.caption=abb[i])
+        dev.off()
+        ipth2 = file.path(getwd(),"temp",paste("aov_dp_", abb[i], "_2.png", sep=""))
+        png(filename = ipth2, width = 450, height = 450)
+        plot(modelo, 2, sub.caption=abb[i])
+        dev.off()
+        
+        
+        fpth = file.path(getwd(),"temp",paste(abb[i],".txt",sep=""))
+        
+        sink(fpth)
+        cat("################################################################################","\n")
+        cat(paste("Analysis for", lab[i]), "\n")
+        cat("################################################################################","\n")
+        
+        cat('\n')
+        cat('Analysis of variance','\n')
+        cat('---------------------','\n')
+        print(summary(modelo))
+        cat('\n')
+        
+        sink()
+        
+        
+        data = readLines(fpth)
+        add.anova.sheet(data, ipth1,ipth2, fp, sh=abb[i],coln=F)
+      }  
+    }
+    if (design == "North Carolina II Design (NCII)"){
+      datos[,1]= as.factor(datos[,1])
+      datos[,2]= as.factor(datos[,2])
+      datos[,3]= as.factor(datos[,3])
+      datos[,4]= as.factor(datos[,4])
+      colnames(datos)[c(3,4)]=c("FEMALE","MALE")
+      
+      
+      for (i in 1:length(abb)){
+        resp = datos[,abb[i]]
+        modelo <- aov(resp ~ SET + REP %in% SET + MALE %in% SET + FEMALE %in% SET + MALE:FEMALE %in% SET, data=datos)
+        tabla <- anova(modelo)
+        
+        attr(tabla,"heading")[2] <- paste("Response:",abb[i])
+        ipth1 = file.path(getwd(),"temp",paste("aov_dp_", abb[i], "_1.png", sep=""))
+        png(filename = ipth1, width = 450, height = 450)
+        plot(modelo, 1, sub.caption=abb[i])
+        dev.off()
+        ipth2 = file.path(getwd(),"temp",paste("aov_dp_", abb[i], "_2.png", sep=""))
+        png(filename = ipth2, width = 450, height = 450)
+        plot(modelo, 2, sub.caption=abb[i])
+        dev.off()
+        
+        fpth = file.path(getwd(),"temp",paste(abb[i],".txt",sep=""))
+        
+        sink(fpth)
+        cat("################################################################################","\n")
+        cat(paste("Analysis for", lab[i]), "\n")
+        cat("################################################################################","\n")
+        
+        sh1=datos[,c("SET","MALE","FEMALE","REP", abb[i])]	
+        modelo=carolinaII(sh1)
+        
+        sink()
+        
+        
+        data = readLines(fpth)
+        add.anova.sheet(data, ipth1,ipth2, fp, sh=abb[i],coln=F)
+        
+      }  
+    }	
+    if (design == "Line x Tester Analysis (LXT)"){
+      datos[,2]= as.factor(datos[,2])
+      datos[,3]= as.factor(datos[,3])
+      datos[,4]= as.factor(datos[,4])
+      colnames(datos)[c(3,4)]=c("TESTER","LINE")
+      
+      for (i in 1:length(abb)){
+        resp = datos[,abb[i]]
+        #modelo <- aov(resp ~ SET + REP %in% SET + MALE %in% SET + FEMALE %in% SET + MALE:FEMALE %in% SET, data=datos)
+        modelo=aov(resp ~ LINE * TESTER, data = datos)
+        tabla <- anova(modelo)
+        
+        attr(tabla,"heading")[2] <- paste("Response:",abb[i])
+        ipth1 = file.path(getwd(),"temp",paste("aov_dp_", abb[i], "_1.png", sep=""))
+        png(filename = ipth1, width = 450, height = 450)
+        plot(modelo, 1, sub.caption=abb[i])
+        dev.off()
+        ipth2 = file.path(getwd(),"temp",paste("aov_dp_", abb[i], "_2.png", sep=""))
+        png(filename = ipth2, width = 450, height = 450)
+        plot(modelo, 2, sub.caption=abb[i])
+        dev.off()
+        
+        fpth = file.path(getwd(),"temp",paste(abb[i],".txt",sep=""))
+        
+        sink(fpth)
+        cat("################################################################################","\n")
+        cat(paste("Analysis for", lab[i]), "\n")
+        cat("################################################################################","\n")
+        
+        replication=datos[,2]
+        line=datos[,4]
+        tester=datos[,3]
+        
+        modelo=lineXtester2(replication, line, tester, resp, etiqueta=abb[i])
+        
+        sink()
+        
+        data = readLines(fpth)
+        add.anova.sheet(data, ipth1,ipth2, fp, sh=abb[i],coln=F)
+        
+      }  
+    }  
+  }
+  #shell(sn)
+  return(TRUE)
+  
+}
