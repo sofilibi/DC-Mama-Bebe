@@ -1,0 +1,305 @@
+###############################################################################
+#
+# TODO: Add comment
+#
+# Oct 22, 2011
+# 11:37:31 AM
+# Author: Reinhard Simon (rsimon)
+# (c) International Potato Center
+#
+###############################################################################
+
+calc.ranks <- function(fp){
+  sheetName="Ranks by Clone"
+  clear.sheet(sheetName,fp)
+  
+  vl = read.excel(fp, "Var List")
+  #vl = read.xlsx(fp,sheetName="Var List", h=T, stringsAsFactors=F)
+  #an = "x"%in%vl$Analyze | "X"%in%vl$Analyze 
+  vl$Selection.weight = as.numeric(vl$Selection.weight)
+  an = ("x"%in%vl$Analyze | "X"%in%vl$Analyze) & (which(vl$Selection.weight>0)) 
+  #print(an)
+  #print(nrow(vl))
+  if(length(an)>0){
+    vl = vl[which(tolower(vl$Selection.weight)>0),c("Abbreviations","Selection.direction","Selection.weight")]
+    #write.xls("Insufficient data for calculating ranks.",fp,sheet="Ranks by clone")
+    #print("chau")
+    #return()
+    #} else {
+    #print(vl)
+    va  = vl[,"Abbreviations"]
+    vnm = paste(vl[,"Abbreviations"],"_mean_","mother",sep="")
+    vnb = paste(vl[,"Abbreviations"],"_mean_","baby",sep="")
+    
+    
+    
+    
+    #TODO handle case when less than 2 are marked
+    #better handling of missing values for missing sel.dir and sel.weight
+    #print("check 1")
+    sc = read.excel(fp, "Summary By Clone M&B")
+    dbm = sc[,vnm]
+    dbb=  sc[,vnb]
+    #Handle case when count of x=1
+    dbm = as.data.frame(dbm)	
+    dbb = as.data.frame(dbb)
+    names(dbm)=vnm
+    names(dbb)=vnb
+    
+    for(i in 1:ncol(dbm)) dbm[,i]=as.numeric(dbm[,i])
+    for(i in 1:ncol(dbb)) dbb[,i]=as.numeric(dbb[,i])
+      #print(db)
+    
+    vm = apply(dbm,2,scale)
+    vb = apply(dbb,2,scale)
+    
+    row.names(vm) = sc$INSTN
+    row.names(vb) = sc$INSTN
+    
+    
+    # remove columns where NaN
+    nanm = rep(FALSE,ncol(vm))
+    nanb = rep(FALSE,ncol(vb))
+    
+    
+    for(i in 1:ncol(dbm)) {
+      nanm[i] = is.nan(vm[1,i])
+      }
+    
+    for(i in 1:ncol(dbb)) {
+         nanb[i]=is.nan(vb[1,i])
+      }
+    
+    
+    vm = vm[,!nanm]
+    vb = vb[,!nanb]
+    
+    
+    dbm = dbm[,!nanm]
+    dbb = dbb[,!nanb]
+    
+    
+    #Handle case when count of x=1
+    dbm = as.data.frame(dbm)	
+    dbb = as.data.frame(dbb)
+    
+    #print(vn)
+    #print(names(db))
+    #names(db)=vn
+    
+    vam = rep("",ncol(dbm))
+    vab = rep("",ncol(dbb))
+    
+    
+    
+    
+    if(ncol(dbm)>1){
+      for(i in 1:ncol(dbm)) vam[i] = str_replace(names(dbm)[i],"_Mean","")
+    } else {
+      names(dbm)=vlm[1,1]
+      vam = names(dbm)
+    }
+    
+    
+    if(ncol(dbb)>1){
+      for(i in 1:ncol(dbb)) vab[i] = str_replace(names(dbb)[i],"_Mean","")
+    } else {
+      names(dbb)=vlb[1,1]
+      vab = names(dbb)
+    }
+    
+    
+    
+    vl = vl[vl[,1]%in%va,]
+    #print("check 2")
+    vd = vl[,"Selection.direction"]
+    vw = vl[,"Selection.weight"]
+    #print(str(vd))
+    #print(vw)
+    #print(va)
+    #print(vl)
+    #print(length(vd))
+    for(i in 1:length(vd)) {
+      if(is.na(vd[i])) vd[i]="1"
+      if(is.na(vw[i])) vw[i]="1"
+      if(nchar(vd[i])==0) vd[i]="1"
+      if(vd[i]=="+") vd[i]="1"
+      if(vd[i]=="-") vd[i]="-1"
+      if(nchar(vw[i])==0) vw[i]="1"
+    }
+    vd = as.integer(vd)
+    #print("-------")
+    #print(vd)
+    #print("check 3")
+    #filter only those 
+    vf = vd!=0 
+    
+    ####otra vez mama y bebe
+    
+    vn1m = paste(vl[,1],"_mean_","mother",sep="")
+    vn1b = paste(vl[,1],"_mean_","baby",sep="")
+    
+    
+    #print(vn1)
+    vnm = vn1m[vf]
+    vnb = vn1b[vf]
+    
+    
+    dbm = sc[,vn1m]
+    dbb = sc[,vn1b]
+    
+    #print(db)
+    #print("==========================")
+    #Handle case when count of x=1
+    if(length(vn1m)==1) db=as.numeric(dbm)
+    if(length(vn1b)==1) db=as.numeric(dbb)
+    
+    
+    dbm = as.data.frame(dbm)	
+    dbb = as.data.frame(dbb)  
+    
+    
+    
+    names(dbm)=vnm
+    names(dbb)=vnb
+        
+    for(i in 1:ncol(dbm)) dbm[,i]=as.numeric(dbm[,i])
+    for(i in 1:ncol(dbb)) dbb[,i]=as.numeric(dbb[,i])
+    
+    
+    #print(db)
+    #print(str(db))
+    #print("==========================")
+    vw = as.numeric(vw[vf])
+    #print(db)
+    #print(str(db))
+    #print(str(vd))
+    #for(i in 1:ncol(db)) db[,i]=as.numeric(db[,i])
+    for(i in 1:ncol(dbm)) dbm[,i]=dbm[,i]*vd[i]
+    for(i in 1:ncol(dbb)) dbb[,i]=dbb[,i]*vd[i]
+    
+    
+    #print(db)
+    #print("==========================")
+    
+    vm = apply(dbm,2,scale)
+    vb = apply(dbb,2,scale)
+    
+    
+    #print(v)
+    #print("==========================")
+    row.names(vm) = sc$INSTN
+    row.names(vb) = sc$INSTN
+    
+    
+    nnm = ncol(vm)
+    nnb = ncol(vb)
+    
+    
+    
+    rsim = rowSums(vm, na.rm=T)
+    rsib = rowSums(vb, na.rm=T)
+    
+    rssm = scale(rsim)
+    rssb = scale(rsib)
+    
+    
+    
+    # SSD index calculation
+    swd <- numeric(nrow(dbm))
+    for (j in 1:nrow(dbm)) {
+      #for all genotypes
+      for (i in 1:ncol(dbm)) {
+        # for one genotype add up over variables
+        if(!is.na(vm[j,i])){
+          swd[j] <- swd[j] + (vm[j, i] * vw[i])
+        }
+      }
+    }
+    swdm <- scale(swd) #rescale
+    
+    ######
+    swd <- numeric(nrow(dbb))
+    for (j in 1:nrow(dbb)) {
+      #for all genotypes
+      for (i in 1:ncol(dbb)) {
+        # for one genotype add up over variables
+        if(!is.na(vb[j,i])){
+          swd[j] <- swd[j] + (vb[j, i] * vw[i])
+        }
+      }
+    }
+    
+    swdb <- scale(swd) #rescale
+    
+      
+    eim <- numeric(nrow(dbm))
+    for (i in 1:length(eim)) eim[i] <- 1
+    for (j in 1:nrow(dbm)) {
+      for (i in 1:ncol(dbm)) {
+        if(!is.na(vm[j,i])){
+          eim[j] <- eim[j] * vm[j, i]
+        }
+      }
+    }
+    eimm <- scale(eim)	
+    
+    
+    eim <- numeric(nrow(dbb))
+    for (i in 1:length(eim)) eim[i] <- 1
+    for (j in 1:nrow(dbb)) {
+      for (i in 1:ncol(dbb)) {
+        if(!is.na(vb[j,i])){
+          eim[j] <- eim[j] * vb[j, i]
+        }
+      }
+    }
+    eimb <- scale(eim)  
+    
+       
+    vb.m = dbm
+    vb.b = dbb
+    
+    for(i in 1:ncol(dbm)) vb.m[,i]=as.numeric(dbm[,i])*vd[i]
+    for(i in 1:ncol(dbb)) vb.b[,i]=as.numeric(dbb[,i])*vd[i]
+        
+    vmm = cbind(vb.m, vm, rssm, swdm, eimm)
+    vbb = cbind(vb.b, vb, rssb, swdb, eimb)
+    
+    vmm = as.data.frame(vmm)
+    vbb = as.data.frame(vbb)
+    
+    
+    
+    #names(v)[(ncol(v)-2):ncol(v)]=c("RSS","SWD","EIM")
+    names(vmm)[(ncol(vmm)-2):ncol(vmm)]=c("RSS","SWD","EIM")
+    names(vbb)[(ncol(vbb)-2):ncol(vbb)]=c("RSS","SWD","EIM")
+    
+    
+    
+    #	print(v)
+    vmm = vmm[do.call(order, -vmm["RSS"]), ]
+    vbb = vbb[do.call(order, -vbb["RSS"]), ]
+    
+    vmm = cbind(row.names(vmm),vmm)
+    names(vmm)[1]="INSTN"
+    names(vmm)[(nnm+2):ncol(vmm)]=as.character(sapply(names(vmm)[(nnm+2):ncol(vmm)], str_replace,"_mean","_Rank"))
+    
+    vbb = cbind(row.names(vbb),vbb)
+    names(vbb)[1]="INSTN"
+    names(vbb)[(nnb+2):ncol(vbb)]=as.character(sapply(names(vbb)[(nnb+2):ncol(vbb)], str_replace,"_mean","_Rank"))
+    
+    
+    
+#     names(v)[1]="INSTN"
+#     names(v)[(nn+2):ncol(v)]=as.character(sapply(names(v)[(nn+2):ncol(v)], str_replace,"_mean","_Rank"))
+#     #write.xlsx2(v,file=fp,sheetName="Ranks by clone",append=T, row.names=F)
+    #print("write ranks")
+    
+    p=merge(vmm,vbb,by="INSTN")
+    
+    try(write.xls(p,"C:/Documents and Settings/obenites.CIP_LIMA/Desktop/ranks.xlsx",sheet=sheetName))
+    #print("Write ranks ok")
+  }
+  "ok"
+}
