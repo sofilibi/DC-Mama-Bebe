@@ -1,9 +1,9 @@
 ###############################################################################
 #
 #
-# Jun 21, 2011
+# May 5, 2014
 # 8:28:07 AM
-# Author: Reinhard Simon (rsimon)
+# Author: Reinhard Simon (rsimon), Omar Benites(obenites)
 # (c) International Potato Center
 #
 ###############################################################################
